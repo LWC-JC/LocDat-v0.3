@@ -1,0 +1,113 @@
+Category,Attribute,Option
+Soil Lithology,Fill/Natural,Fill
+Soil Lithology,Fill/Natural,Natural
+Soil Lithology,Fill/Natural,Re-worked Natural
+Soil Lithology,Major Constituent,CLAY
+Soil Lithology,Major Constituent,SILT
+Soil Lithology,Major Constituent,SAND
+Soil Lithology,Major Constituent,GRAVEL
+Soil Lithology,Major Constituent,COBBLE
+Soil Lithology,Minor Constituents,Clayey
+Soil Lithology,Minor Constituents,Silty
+Soil Lithology,Minor Constituents,Sandy
+Soil Lithology,Minor Constituents,Gravelly
+Soil Lithology,Minor Constituents,Cobbled
+Soil Lithology,Grain-size,Fine
+Soil Lithology,Grain-size,Fine-medium
+Soil Lithology,Grain-size,Medium
+Soil Lithology,Grain-size,Medium-course
+Soil Lithology,Grain-size,Course
+Soil Lithology,Plasticity,Non-plastic
+Soil Lithology,Plasticity,Low
+Soil Lithology,Plasticity,Low-medium
+Soil Lithology,Plasticity,Medium
+Soil Lithology,Plasticity,Medium-high
+Soil Lithology,Plasticity,High
+Soil Lithology,Primary Colour,Brown
+Soil Lithology,Primary Colour,Red
+Soil Lithology,Primary Colour,Orange
+Soil Lithology,Primary Colour,Grey
+Soil Lithology,Primary Colour,Other - Black
+Soil Lithology,Primary Colour,Other - White
+Soil Lithology,Primary Colour,Other - Yellow
+Soil Lithology,Primary Colour,Other - Green
+Soil Lithology,Primary Colour,Other - Blue
+Soil Lithology,Combination,-
+Soil Lithology,Combination,Mottled
+Soil Lithology,Secondary Colour,Brown
+Soil Lithology,Secondary Colour,Red
+Soil Lithology,Secondary Colour,Orange
+Soil Lithology,Secondary Colour,Grey
+Soil Lithology,Secondary Colour,Other - Black
+Soil Lithology,Secondary Colour,Other - White
+Soil Lithology,Secondary Colour,Other - Yellow
+Soil Lithology,Secondary Colour,Other - Green
+Soil Lithology,Secondary Colour,Other - Blue
+Soil Lithology,Colour Shade,Light
+Soil Lithology,Colour Shade,Dark
+Soil Lithology,Moisture,Dry
+Soil Lithology,Moisture,dry-moist
+Soil Lithology,Moisture,Moist
+Soil Lithology,Moisture,Moist-wet
+Soil Lithology,Moisture,Wet
+Soil Lithology,Consistency (cohesive),Very soft
+Soil Lithology,Consistency (cohesive),Soft
+Soil Lithology,Consistency (cohesive),Firm
+Soil Lithology,Consistency (cohesive),Stiff
+Soil Lithology,Consistency (cohesive),Very stiff
+Soil Lithology,Consistency (cohesive),Hard
+Soil Lithology,Consistency (non-cohesive),Very loose
+Soil Lithology,Consistency (non-cohesive),Loose
+Soil Lithology,Consistency (non-cohesive),Medium dense
+Soil Lithology,Consistency (non-cohesive),Dense
+Soil Lithology,Consistency (non-cohesive),Very Dense
+Soil Lithology,Grading,Well
+Soil Lithology,Grading,Poorly
+Soil Lithology,Grading,Gap
+Soil Lithology,Grading,Uniform
+Soil Lithology,Particle Shape,Rounded
+Soil Lithology,Particle Shape,Sub-rounded
+Soil Lithology,Particle Shape,Sub-angular
+Soil Lithology,Particle Shape,Angular
+Soil Lithology,Inclusions,Brick fragments
+Soil Lithology,Inclusions,Asphalt fragments
+Soil Lithology,Inclusions,Concrete fragments
+Soil Lithology,Inclusions,Ash
+Soil Lithology,Inclusions,Slag
+Soil Lithology,Inclusions,Black speck inclusions
+Soil Lithology,Inclusions,potentially asbestos cement sheeting
+Soil Lithology,Inclusions,Metal fragments
+Soil Lithology,Inclusions,Glass fragments
+Soil Lithology,Inclusions,Timber fragments
+Soil Lithology,Inclusions,Plastic fragments
+Soil Lithology,Inclusions,Wood fragments
+Soil Lithology,Inclusion Amount,Trace
+Soil Lithology,Inclusion Amount,With
+Samples,Sample Type,Normal
+Samples,Sample Type,Field_D
+Samples,Sample Type,Interlab_D
+Samples,Sample Type,Rinse
+Samples,Sample Type,Trip Blank
+Samples,Sample Method,Grab Sample
+Samples,Sample Method,Core Sample
+Samples,Sample Method,Auger cutting sample
+Field Measurement,Measurement Type,PID
+Field Measurement,Measurement Type,RemScan
+Field Measurement,Units,ppm
+Field Measurement,Units,mg/kg
+Spatial,GPS Mode,Device GPS
+Spatial,GPS Mode,Manual
+Spatial,Datum,GDA2020
+Spatial,Zone,MGA Zone 54
+Attribute Groups,Group Type,Soil Bore
+Attribute Groups,Group Type,Soil Sample
+Attribute Groups,Group Type,Groundwater Sample
+Attribute Groups,Group Type,Soil Vapour Sample
+Attribute Groups,Group Type,Groundwater Well Gauge
+Attribute Groups,Group Type,Field Measurement
+Attribute Groups,Group Type,Custom 1
+GW Well Construction,Interval,Screen
+GW Well Construction,Interval,Sand
+GW Well Construction,Interval,Bentonite
+GW Well Construction,Interval,Grout
+GW Well Construction,Interval,Backfill
