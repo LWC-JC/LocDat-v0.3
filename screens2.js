@@ -319,7 +319,7 @@ async function nextDuplicateId(projectId, dupType) {
       const samps = await dbGetAllByIndex('soilBoreSamples', 'boreholeId', b.id);
       for (const s of samps) if (s.sampleType === dupType) allIds.push(s.sampleId);
     }
-    for (const store of ['soilSamples', 'gwSamples', 'svSamples']) {
+    for (const store of ['soilSamples', 'gwSamples', 'svSamples', 'otherSamples']) {
       const samps = await dbGetAllByIndex(store, 'locationId', loc.id);
       for (const s of samps) if (s.sampleType === dupType) allIds.push(s.sampleId);
     }
@@ -469,9 +469,14 @@ async function screenSoilBoreSample(sampleId) {
       idI.value = await nextDuplicateId(loc.projectId, currentType);
     } else {
       const settings = await getSettings();
-      const prefix = (settings.autoIds?.soilBoreSamplePrefix || '[SoilBoreId]-').replace('[SoilBoreId]', bore.boreholeId);
-      const existing = await dbGetAllByIndex('soilBoreSamples', 'boreholeId', bore.id);
-      idI.value = nextAutoId(prefix, existing.map(e => e.sampleId));
+      const template = (settings.autoIds?.soilBoreSamplePrefix || '[SoilBoreId]_[from]-[to]');
+      const from = parseFloat(getVal('s-from')) || 0;
+      const to = parseFloat(getVal('s-to')) || 0;
+      const id = template
+        .replace('[SoilBoreId]', bore.boreholeId)
+        .replace('[from]', from.toFixed(1))
+        .replace('[to]', to.toFixed(1));
+      idI.value = id;
     }
     setDirty();
   }}, 'Auto');
@@ -491,9 +496,16 @@ async function screenSoilBoreSample(sampleId) {
   ]));
 
   content.appendChild(formRow('Sample Type:', selectInput('s-type', SAMPLE_TYPES, s.sampleType || 'Normal')));
+  content.appendChild(formRow('Sample Matrix:', selectInput('s-matrix', SAMPLE_MATRIX, s.sampleMatrix || 'Soil')));
   content.appendChild(formRow('Sample Method:', selectInput('s-method', SAMPLE_METHODS_SOIL, s.sampleMethod || '')));
   content.appendChild(formRow('Sampler:', textInput('s-sampler', s.sampler || '')));
   content.appendChild(formRow('Sample Code:', textInput('s-code', s.sampleCode || '')));
+
+  const containerBg = multiButtonGroup('s-containers', SAMPLE_CONTAINERS, s.containers || []);
+  content.appendChild(el('div', { class: 'form-field vertical' }, [
+    el('label', {}, 'Containers:'),
+    containerBg
+  ]));
 
   content.appendChild(el('div', { class: 'form-field vertical' }, [
     el('label', {}, 'Soil Sample Notes:'),
@@ -501,6 +513,9 @@ async function screenSoilBoreSample(sampleId) {
   ]));
 
   content.appendChild(photoPreviewUI(`bore:${bore.id}:samp:${sampleId}`, loc.projectId, `${loc.locationId}_${bore.boreholeId}_${s.sampleId}`, 'Sample Photo'));
+
+  const cocField = await buildCocBatchField(loc.projectId, s.cocBatchId || null, s.sampleType || 'Normal');
+  content.appendChild(cocField);
 
   const dupAction = async (dupType) => {
     const dup = { ...s };
@@ -524,10 +539,14 @@ async function screenSoilBoreSample(sampleId) {
     s.depthTo = parseFloat(getVal('s-to')) || 0;
     s.dateTime = dtI.value;
     s.sampleType = getVal('s-type');
+    s.sampleMatrix = getVal('s-matrix') || 'Soil';
     s.sampleMethod = getVal('s-method');
     s.sampler = getVal('s-sampler');
     s.sampleCode = getVal('s-code');
+    s.containers = containerBg.values;
     s.notes = getVal('s-notes');
+    const cocSel = document.getElementById('samp-coc');
+    s.cocBatchId = cocSel && cocSel.value ? parseInt(cocSel.value) : null;
     s.updatedAt = new Date().toISOString();
     await dbPut('soilBoreSamples', s);
   }));
@@ -538,9 +557,11 @@ async function screenSoilBoreSample(sampleId) {
 async function createAndEditBoreSample(boreId, from, to) {
   const bore = await dbGet('soilBoreholes', boreId);
   const settings = await getSettings();
-  const prefix = (settings.autoIds?.soilBoreSamplePrefix || '[SoilBoreId]-').replace('[SoilBoreId]', bore.boreholeId);
-  const existing = await dbGetAllByIndex('soilBoreSamples', 'boreholeId', boreId);
-  const id = nextAutoId(prefix, existing.map(e => e.sampleId));
+  const template = (settings.autoIds?.soilBoreSamplePrefix || '[SoilBoreId]_[from]-[to]');
+  const id = template
+    .replace('[SoilBoreId]', bore.boreholeId)
+    .replace('[from]', (from || 0).toFixed(1))
+    .replace('[to]', (to || 0).toFixed(1));
   const obj = {
     boreholeId: boreId,
     sampleId: id,
@@ -548,9 +569,16 @@ async function createAndEditBoreSample(boreId, from, to) {
     depthTo: to,
     dateTime: nowStr(),
     sampleType: 'Normal',
+    sampleMatrix: 'Soil',
     sampleMethod: '',
     sampler: settings.userName || '',
     sampleCode: '',
+    containers: [],
+    cocBatchId: await (async () => {
+      const boreRec = await dbGet('soilBoreholes', boreId);
+      const locRec  = await dbGet('locations', boreRec.locationId);
+      return getDefaultCocBatchId(locRec.projectId, 'Normal');
+    })(),
     notes: '',
     createdAt: new Date().toISOString()
   };

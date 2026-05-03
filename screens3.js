@@ -110,9 +110,16 @@ async function screenSoilSample(sampId) {
     ])
   ]));
   content.appendChild(formRow('Sample Type:', selectInput('ss-type', SAMPLE_TYPES, s.sampleType || 'Normal')));
+  content.appendChild(formRow('Sample Matrix:', selectInput('ss-matrix', SAMPLE_MATRIX, s.sampleMatrix || 'Soil')));
   content.appendChild(formRow('Sample Method:', selectInput('ss-method', SAMPLE_METHODS_SOIL, s.sampleMethod || '')));
   content.appendChild(formRow('Sampler:', textInput('ss-sampler', s.sampler || '')));
   content.appendChild(formRow('Sample Code:', textInput('ss-code', s.sampleCode || '')));
+
+  const containerBg = multiButtonGroup('ss-containers', SAMPLE_CONTAINERS, s.containers || []);
+  content.appendChild(el('div', { class: 'form-field vertical' }, [
+    el('label', {}, 'Containers:'),
+    containerBg
+  ]));
 
   content.appendChild(el('div', { class: 'form-field vertical' }, [
     el('label', {}, 'Soil Sample Notes:'),
@@ -120,6 +127,9 @@ async function screenSoilSample(sampId) {
   ]));
 
   content.appendChild(photoPreviewUI(`loc:${loc.id}:samp:${sampId}`, loc.projectId, `${loc.locationId}_${s.sampleId}`, 'Sample Photo'));
+
+  const ssCocField = await buildCocBatchField(loc.projectId, s.cocBatchId || null, s.sampleType || 'Normal');
+  content.appendChild(ssCocField);
 
   const ssDupAction = async (dupType) => {
     const dup = { ...s };
@@ -142,10 +152,14 @@ async function screenSoilSample(sampId) {
     s.depthTo = parseFloat(getVal('ss-to')) || 0;
     s.dateTime = dtI.value;
     s.sampleType = getVal('ss-type');
+    s.sampleMatrix = getVal('ss-matrix') || 'Soil';
     s.sampleMethod = getVal('ss-method');
     s.sampler = getVal('ss-sampler');
     s.sampleCode = getVal('ss-code');
+    s.containers = containerBg.values;
     s.notes = getVal('ss-notes');
+    const cocSel = document.getElementById('samp-coc');
+    s.cocBatchId = cocSel && cocSel.value ? parseInt(cocSel.value) : null;
     await dbPut('soilSamples', s);
   }));
 
@@ -162,7 +176,7 @@ async function createAndEditSoilSample(locId) {
     sampleId: id,
     depthFrom: 0, depthTo: 0.1,
     dateTime: nowStr(),
-    sampleType: 'Normal', sampleMethod: '', sampler: settings.userName || '', sampleCode: '', notes: '',
+    sampleType: 'Normal', sampleMatrix: 'Soil', sampleMethod: '', sampler: settings.userName || '', sampleCode: '', containers: [], notes: '',
     createdAt: new Date().toISOString()
   };
   obj.id = await dbAdd('soilSamples', obj);
@@ -434,17 +448,25 @@ async function exportXlsx(projectId, selLocs) {
   // ----- Schemas for the rest -----
   const boreRows = [['Location_Code', 'Borehole_ID', 'Drill_Date', 'Driller', 'Drilling_Method', 'Logger', 'Total_Depth_m', 'Notes']];
   const lithRows = [['Location_Code', 'Borehole_ID', 'Depth_From_m', 'Depth_To_m', 'Fill_Natural', 'Major_Constituent', 'Minor_Constituents', 'Grain_Size', 'Plasticity', 'Primary_Colour', 'Combination', 'Secondary_Colour', 'Colour_Shade', 'Moisture', 'Consistency_Cohesive', 'Consistency_Non_Cohesive', 'Grading', 'Particle_Shape', 'Inclusion_1', 'Inclusion_1_Amount', 'Inclusion_2', 'Inclusion_2_Amount', 'Inclusion_3', 'Inclusion_3_Amount', 'Notes']];
-  const sampleRows = [['Sample_ID', 'Location_Code', 'Borehole_ID', 'Parent_Sample_ID', 'Sampled_Date_Time', 'Depth', 'Depth_Lower', 'Matrix', 'Sample_Type', 'Sample_Method', 'Sampler', 'Sample_Code', 'Notes']];
+  const sampleRows = [['Sample_ID', 'COC_Batch_Name', 'Location_Code', 'Borehole_ID', 'Parent_Sample_ID', 'Sampled_Date_Time', 'Depth', 'Depth_Lower', 'Sample_Matrix', 'Sample_Type', 'Sample_Method', 'Sampler', 'Sample_Code', 'Containers', 'Notes']];
   const fmRows = [['Location_Code', 'Borehole_ID', 'Depth_From_m', 'Depth_To_m', 'Date_Time', 'Measurement_Type', 'Measurement', 'Units', 'Notes']];
   const customRows = [['Location_Code', 'Attribute_Type', 'Value', 'Date_Time', 'Notes']];
   const gaugeRows = [['Location_Code', 'Gauge_Date_Time', 'Well_Depth_m', 'Depth_To_Water_m', 'Standing_Water_Level_m', 'Notes']];
   const wellRows = [['Location_Code', 'Borehole_ID', 'Water_Intersection_Depth_m', 'Screen_From_m', 'Screen_To_m', 'Sand_From_m', 'Sand_To_m', 'Bentonite_From_m', 'Bentonite_To_m', 'Grout_From_m', 'Grout_To_m', 'Backfill_From_m', 'Backfill_To_m', 'Notes']];
+
+  // Build batch name lookup for export
+  const batchNameMap = await buildBatchNameMap(projectId);
 
   function parentFor(s, pool) {
     if (s.sampleType === 'Field_D' || s.sampleType === 'Interlab_D') {
       return pool.find(x => Math.abs((x.depthFrom||0) - (s.depthFrom||0)) < 1e-6 && x.sampleType === 'Normal')?.sampleId || '';
     }
     return '';
+  }
+  function fmtContainers(c) { return Array.isArray(c) ? c.join('; ') : (c || ''); }
+  function sRow(s, loc, boreId, matrix) {
+    const batchName = s.cocBatchId ? (batchNameMap.get(s.cocBatchId) || '') : '';
+    return [s.sampleId, batchName, loc.locationId, boreId || '', parentFor(s, []), s.dateTime, s.depthFrom, s.depthTo, s.sampleMatrix || matrix, s.sampleType, s.sampleMethod, s.sampler, s.sampleCode, fmtContainers(s.containers), s.notes];
   }
 
   for (const { locId, groups } of selLocs) {
@@ -459,9 +481,7 @@ async function exportXlsx(projectId, selLocs) {
           lithRows.push([loc.locationId, b.boreholeId, l.depthFrom, l.depthTo, l.fillNatural || '', l.majorConstituent, l.minorConstituents, l.grainSize, l.plasticity, l.primaryColour, l.combination, l.secondaryColour, l.colourShade, l.moisture, l.consistencyCohesive, l.consistencyNonCohesive, l.grading, l.particleShape, l.inclusion1, l.inclusion1Amount, l.inclusion2, l.inclusion2Amount, l.inclusion3, l.inclusion3Amount, l.notes]);
         }
         const samps = await dbGetAllByIndex('soilBoreSamples', 'boreholeId', b.id);
-        for (const s of samps) {
-          sampleRows.push([s.sampleId, loc.locationId, b.boreholeId, parentFor(s, samps), s.dateTime, s.depthFrom, s.depthTo, 'Soil', s.sampleType, s.sampleMethod, s.sampler, s.sampleCode, s.notes]);
-        }
+        for (const s of samps) sampleRows.push(sRow(s, loc, b.boreholeId, 'Soil'));
         const bfms = await dbGetAllByIndex('soilBoreFieldMeas', 'boreholeId', b.id);
         for (const f of bfms) {
           fmRows.push([loc.locationId, b.boreholeId, f.depthFrom, f.depthTo, f.dateTime, f.measurementType, f.measurement, f.units, f.notes]);
@@ -474,21 +494,19 @@ async function exportXlsx(projectId, selLocs) {
     }
     if (groups.includes('soilSample')) {
       const samps = await dbGetAllByIndex('soilSamples', 'locationId', locId);
-      for (const s of samps) {
-        sampleRows.push([s.sampleId, loc.locationId, '', parentFor(s, samps), s.dateTime, s.depthFrom, s.depthTo, 'Soil', s.sampleType, s.sampleMethod, s.sampler, s.sampleCode, s.notes]);
-      }
+      for (const s of samps) sampleRows.push(sRow(s, loc, '', 'Soil'));
     }
     if (groups.includes('gwSample')) {
       const samps = await dbGetAllByIndex('gwSamples', 'locationId', locId);
-      for (const s of samps) {
-        sampleRows.push([s.sampleId, loc.locationId, '', parentFor(s, samps), s.dateTime, s.depthFrom, s.depthTo, 'Water', s.sampleType, s.sampleMethod, s.sampler, s.sampleCode, s.notes]);
-      }
+      for (const s of samps) sampleRows.push(sRow(s, loc, '', 'Water'));
     }
     if (groups.includes('svSample')) {
       const samps = await dbGetAllByIndex('svSamples', 'locationId', locId);
-      for (const s of samps) {
-        sampleRows.push([s.sampleId, loc.locationId, '', parentFor(s, samps), s.dateTime, s.depthFrom, s.depthTo, 'Vapour', s.sampleType, s.sampleMethod, s.sampler, s.sampleCode, s.notes]);
-      }
+      for (const s of samps) sampleRows.push(sRow(s, loc, '', 'Gas'));
+    }
+    if (groups.includes('otherSample')) {
+      const samps = await dbGetAllByIndex('otherSamples', 'locationId', locId);
+      for (const s of samps) sampleRows.push(sRow(s, loc, '', s.sampleMatrix || 'Other'));
     }
     if (groups.includes('gwWellGauge')) {
       const gauges = await dbGetAllByIndex('gwWellGauges', 'locationId', locId);
@@ -518,6 +536,26 @@ async function exportXlsx(projectId, selLocs) {
   if (gaugeRows.length > 1) sheets['GW Well Gauges'] = gaugeRows;
   if (wellRows.length > 1) sheets['GW Well Construction'] = wellRows;
   if (customRows.length > 1) sheets['Custom'] = customRows;
+
+  // COC Batches sheet (all batches for this project)
+  const allBatches = await dbGetAllByIndex('cocBatches', 'projectId', projectId);
+  if (allBatches.length > 0) {
+    const cocRows = [['Batch_Name', 'Dispatch_Date', 'Laboratory', 'Lab_Role', 'Contact_Name', 'Contact_Phone', 'Contact_Email', 'Results_Email_1', 'Results_Email_2', 'Sent', 'Notes']];
+    for (const b of allBatches) {
+      cocRows.push([b.batchName, b.dispatchDate, b.laboratory, b.labRole, b.dispatchContactName, b.dispatchContactPhone, b.dispatchContactEmail, b.resultsEmail1, b.resultsEmail2, b.sent ? 'Yes' : 'No', b.notes]);
+    }
+    sheets['COC Batches'] = cocRows;
+  }
+
+  // COC QC Samples sheet
+  const qcRows = [['Sample_ID', 'COC_Batch_Name', 'Sample_Type', 'Sample_Type_Label', 'Date_Time', 'Containers', 'Notes']];
+  for (const b of allBatches) {
+    const qcSamps = await dbGetAllByIndex('cocQcSamples', 'cocBatchId', b.id);
+    for (const q of qcSamps) {
+      qcRows.push([q.sampleId, b.batchName, q.sampleType, COC_QC_LABELS[q.sampleType] || q.sampleType, q.dateTime, fmtContainers(q.containers), q.notes]);
+    }
+  }
+  if (qcRows.length > 1) sheets['COC QC Samples'] = qcRows;
 
   // Build workbook
   const wb = XLSX.utils.book_new();
@@ -684,11 +722,23 @@ async function screenSettings() {
     el('h3', {}, 'Auto Generating IDs'),
     formRow('Location ID prefix:', textInput('set-loc', a.locationPrefix || '')),
     formRow('Soil Bore ID prefix:', textInput('set-sb', a.soilBorePrefix || '')),
-    formRow('Soil Bore Sample prefix:', textInput('set-sbs', a.soilBoreSamplePrefix || '')),
-    formRow('Soil Sample ID prefix:', textInput('set-ss', a.soilSamplePrefix || '')),
+    formRow('Soil Bore Sample prefix:', textInput('set-sbs', a.soilBoreSamplePrefix || '[SoilBoreId]_[from]-[to]')),
+    formRow('Soil Sample ID prefix:', textInput('set-ss', a.soilSamplePrefix || 'SS')),
     formRow('GW Sample ID prefix:', textInput('set-gw', a.gwSamplePrefix || 'GW')),
     formRow('SV Sample ID prefix:', textInput('set-sv', a.svSamplePrefix || 'SV')),
-    el('div', { class: 'text-small' }, 'Tokens: use [SoilBoreId] in Soil Bore Sample prefix to insert the parent bore ID.')
+    formRow('Other Sample ID prefix:', textInput('set-os', a.otherSamplePrefix || 'OS')),
+    el('div', { class: 'text-small' }, 'Soil Bore Sample tokens: [SoilBoreId] = bore ID, [from] = depth from, [to] = depth to. Example: SB01_0.0-0.1')
+  ]));
+
+  const cd = settings.cocDefaults || {};
+  content.appendChild(el('div', { class: 'settings-section' }, [
+    el('h3', {}, 'COC Dispatch Defaults'),
+    formRow('Contact Name:',  textInput('set-cd-name',  cd.dispatchContactName  || '')),
+    formRow('Contact Phone:', textInput('set-cd-phone', cd.dispatchContactPhone || '')),
+    formRow('Contact Email:', textInput('set-cd-cemail', cd.dispatchContactEmail || '')),
+    formRow('Results Email 1:', textInput('set-cd-em1', cd.resultsEmail1 || '')),
+    formRow('Results Email 2:', textInput('set-cd-em2', cd.resultsEmail2 || '')),
+    el('div', { class: 'text-small' }, 'These pre-fill when creating a new COC Batch.')
   ]));
 
   content.appendChild(el('div', { class: 'settings-section' }, [
@@ -710,13 +760,21 @@ async function screenSettings() {
       soilBoreSamplePrefix: getVal('set-sbs'),
       soilSamplePrefix: getVal('set-ss'),
       gwSamplePrefix: getVal('set-gw'),
-      svSamplePrefix: getVal('set-sv')
+      svSamplePrefix: getVal('set-sv'),
+      otherSamplePrefix: getVal('set-os')
     };
     settings.customAttrGroup = {
       name: getVal('set-cg-name'),
       attr1Name: getVal('set-c1n'), attr1Units: getVal('set-c1u'),
       attr2Name: getVal('set-c2n'), attr2Units: getVal('set-c2u'),
       attr3Name: getVal('set-c3n'), attr3Units: getVal('set-c3u')
+    };
+    settings.cocDefaults = {
+      dispatchContactName:  getVal('set-cd-name'),
+      dispatchContactPhone: getVal('set-cd-phone'),
+      dispatchContactEmail: getVal('set-cd-cemail'),
+      resultsEmail1: getVal('set-cd-em1'),
+      resultsEmail2: getVal('set-cd-em2')
     };
     await saveSettings(settings);
   }));
@@ -809,9 +867,16 @@ function buildMatrixSampleScreen(config) {
       ])
     ]));
     content.appendChild(formRow('Sample Type:', selectInput('m-type', SAMPLE_TYPES, s.sampleType || 'Normal')));
+    content.appendChild(formRow('Sample Matrix:', selectInput('m-matrix', SAMPLE_MATRIX, s.sampleMatrix || config.defaultMatrix || 'Soil')));
     content.appendChild(formRow('Sample Method:', selectInput('m-method', config.methods, s.sampleMethod || '')));
     content.appendChild(formRow('Sampler:', textInput('m-sampler', s.sampler || '')));
     content.appendChild(formRow('Sample Code:', textInput('m-code', s.sampleCode || '')));
+
+    const containerBg = multiButtonGroup('m-containers', SAMPLE_CONTAINERS, s.containers || []);
+    content.appendChild(el('div', { class: 'form-field vertical' }, [
+      el('label', {}, 'Containers:'),
+      containerBg
+    ]));
 
     content.appendChild(el('div', { class: 'form-field vertical' }, [
       el('label', {}, config.title + ' Notes:'),
@@ -819,6 +884,9 @@ function buildMatrixSampleScreen(config) {
     ]));
 
     content.appendChild(photoPreviewUI(`loc:${loc.id}:${config.photoKey}:${sampId}`, loc.projectId, `${loc.locationId}_${s.sampleId}`, config.title + ' Photo'));
+
+    const mCocField = await buildCocBatchField(proj.id, s.cocBatchId || null, s.sampleType || 'Normal');
+    content.appendChild(mCocField);
 
     const dupAction = async (dupType) => {
       const dup = { ...s };
@@ -841,10 +909,14 @@ function buildMatrixSampleScreen(config) {
       s.depthTo = parseFloat(getVal('m-to')) || 0;
       s.dateTime = dtI.value;
       s.sampleType = getVal('m-type');
+      s.sampleMatrix = getVal('m-matrix') || config.defaultMatrix || 'Soil';
       s.sampleMethod = getVal('m-method');
       s.sampler = getVal('m-sampler');
       s.sampleCode = getVal('m-code');
+      s.containers = containerBg.values;
       s.notes = getVal('m-notes');
+      const cocSel = document.getElementById('samp-coc');
+      s.cocBatchId = cocSel && cocSel.value ? parseInt(cocSel.value) : null;
       await dbPut(config.store, s);
     }));
 
@@ -858,6 +930,7 @@ const screenGwSample = buildMatrixSampleScreen({
   photoKey: 'gwsamp',
   fromLabel: 'Sample Depth from (m):', toLabel: 'Sample Depth to (m):',
   methods: SAMPLE_METHODS_GW,
+  defaultMatrix: 'Water',
   get screen() { return screenGwSample; }
 });
 const screenSvSample = buildMatrixSampleScreen({
@@ -866,7 +939,17 @@ const screenSvSample = buildMatrixSampleScreen({
   photoKey: 'svsamp',
   fromLabel: 'Sample Depth from (m):', toLabel: 'Sample Depth to (m):',
   methods: SAMPLE_METHODS_SV,
+  defaultMatrix: 'Gas',
   get screen() { return screenSvSample; }
+});
+const screenOtherSample = buildMatrixSampleScreen({
+  store: 'otherSamples', title: 'Other Sample',
+  prefixKey: 'otherSamplePrefix', defaultPrefix: 'OS',
+  photoKey: 'othersamp',
+  fromLabel: 'Sample Depth from (m):', toLabel: 'Sample Depth to (m):',
+  methods: SAMPLE_METHODS_OTHER,
+  defaultMatrix: 'Other',
+  get screen() { return screenOtherSample; }
 });
 
 async function createAndEditGwSample(locId) {
@@ -878,8 +961,8 @@ async function createAndEditGwSample(locId) {
     locationId: locId, sampleId: id,
     depthFrom: 0, depthTo: 0,
     dateTime: nowStr(),
-    sampleType: 'Normal', sampleMethod: '',
-    sampler: settings.userName || '', sampleCode: '', notes: '',
+    sampleType: 'Normal', sampleMatrix: 'Water', sampleMethod: '',
+    sampler: settings.userName || '', sampleCode: '', containers: [], notes: '',
     createdAt: new Date().toISOString()
   };
   obj.id = await dbAdd('gwSamples', obj);
@@ -894,12 +977,28 @@ async function createAndEditSvSample(locId) {
     locationId: locId, sampleId: id,
     depthFrom: 0, depthTo: 0,
     dateTime: nowStr(),
-    sampleType: 'Normal', sampleMethod: '',
-    sampler: settings.userName || '', sampleCode: '', notes: '',
+    sampleType: 'Normal', sampleMatrix: 'Gas', sampleMethod: '',
+    sampler: settings.userName || '', sampleCode: '', containers: [], notes: '',
     createdAt: new Date().toISOString()
   };
   obj.id = await dbAdd('svSamples', obj);
   navigate(screenSvSample, obj.id);
+}
+async function createAndEditOtherSample(locId) {
+  const settings = await getSettings();
+  const prefix = settings.autoIds?.otherSamplePrefix || 'OS';
+  const existing = await dbGetAllByIndex('otherSamples', 'locationId', locId);
+  const id = nextAutoId(prefix, existing.map(e => e.sampleId));
+  const obj = {
+    locationId: locId, sampleId: id,
+    depthFrom: 0, depthTo: 0,
+    dateTime: nowStr(),
+    sampleType: 'Normal', sampleMatrix: 'Other', sampleMethod: '',
+    sampler: settings.userName || '', sampleCode: '', containers: [], notes: '',
+    createdAt: new Date().toISOString()
+  };
+  obj.id = await dbAdd('otherSamples', obj);
+  navigate(screenOtherSample, obj.id);
 }
 
 // ===== Screen: GW Well Gauge =====

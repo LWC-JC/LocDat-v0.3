@@ -30,9 +30,9 @@ async function screenProjectPicker() {
     for (const p of projects) {
       content.appendChild(el('div', { class: 'list-item', onclick: () => {
         state.currentProjectId = p.id;
-        // pop picker off stack before navigating so back from locations returns home
+        // pop picker off stack so back from hub returns home
         state.screenStack.pop();
-        navigate(screenLocations, p.id);
+        navigate(screenProjectHub, p.id);
       }}, [
         el('span', { class: 'num' }, p.projectNumber || '—'),
         el('span', { class: 'name' }, p.projectName || '(unnamed)')
@@ -98,10 +98,10 @@ async function screenEditProject(projectId) {
       obj.createdAt = obj.updatedAt;
       const id = await dbAdd('projects', obj);
       state.currentProjectId = id;
-      // After creating, replace stack and go forward to locations (skip auto-navBack)
-      state.screenStack = [{ fn: screenHome, args: [] }, { fn: screenLocations, args: [id] }];
+      // After creating, go to hub (skip navBack)
+      state.screenStack = [{ fn: screenHome, args: [] }, { fn: screenProjectHub, args: [id] }];
       setDirty(false);
-      screenLocations(id);
+      screenProjectHub(id);
       return false;
     }
   }));
@@ -118,7 +118,7 @@ async function cascadeDeleteLocation(locId) {
   await dbDelete('spatial', locId);
   const bores = await dbGetAllByIndex('soilBoreholes', 'locationId', locId);
   for (const b of bores) await cascadeDeleteBorehole(b.id);
-  for (const store of ['soilSamples', 'gwSamples', 'svSamples', 'gwWellGauges', 'fieldMeasurements', 'customRecords']) {
+  for (const store of ['soilSamples', 'gwSamples', 'svSamples', 'otherSamples', 'gwWellGauges', 'fieldMeasurements', 'customRecords']) {
     const rows = await dbGetAllByIndex(store, 'locationId', locId);
     for (const r of rows) await dbDelete(store, r.id);
   }
@@ -272,6 +272,24 @@ async function screenLocations(projectId) {
     content.appendChild(blk);
   }
 
+  // Other Samples
+  const otherSamps = await dbGetAllByIndex('otherSamples', 'locationId', loc.id);
+  if (otherSamps.length > 0 || await hasAttrGroup(loc.id, 'otherSample')) {
+    const blk = el('div', { class: 'attr-group' }, [
+      el('div', { class: 'attr-group-header' }, [
+        el('h3', {}, 'Other Samples'),
+        el('button', { class: 'btn-icon', onclick: () => createAndEditOtherSample(loc.id) }, '+')
+      ])
+    ]);
+    for (const s of otherSamps) {
+      blk.appendChild(el('div', { class: 'attr-item' }, [
+        el('span', { class: 'item-label' }, (s.sampleId || '(unnamed)') + (s.sampleMatrix ? ' · ' + s.sampleMatrix : '')),
+        el('button', { class: 'item-edit', onclick: () => navigate(screenOtherSample, s.id) }, 'Edit')
+      ]));
+    }
+    content.appendChild(blk);
+  }
+
   // Groundwater Well Gauges
   const gauges = await dbGetAllByIndex('gwWellGauges', 'locationId', loc.id);
   if (gauges.length > 0 || await hasAttrGroup(loc.id, 'gwWellGauge')) {
@@ -388,9 +406,13 @@ function addAttrGroupBtn(projectId, locId, content) {
           samp.id = await dbAdd('gwSamples', samp);
           navigate(screenGwSample, samp.id);
         } else if (o.key === 'svSample') {
-          const samp = { locationId: locId, sampleId: '', depthFrom: 0, depthTo: 0, dateTime: '', sampleType: 'Normal', sampleMethod: '', sampler: '', sampleCode: '', notes: '', createdAt: new Date().toISOString() };
+          const samp = { locationId: locId, sampleId: '', depthFrom: 0, depthTo: 0, dateTime: '', sampleType: 'Normal', sampleMatrix: 'Gas', sampleMethod: '', sampler: '', sampleCode: '', containers: [], notes: '', createdAt: new Date().toISOString() };
           samp.id = await dbAdd('svSamples', samp);
           navigate(screenSvSample, samp.id);
+        } else if (o.key === 'otherSample') {
+          const samp = { locationId: locId, sampleId: '', depthFrom: 0, depthTo: 0, dateTime: '', sampleType: 'Normal', sampleMatrix: 'Other', sampleMethod: '', sampler: '', sampleCode: '', containers: [], notes: '', createdAt: new Date().toISOString() };
+          samp.id = await dbAdd('otherSamples', samp);
+          navigate(screenOtherSample, samp.id);
         } else if (o.key === 'gwWellGauge') {
           const gauge = { locationId: locId, dateTime: '', wellDepth: null, depthToWater: null, gaugedBy: '', notes: '', createdAt: new Date().toISOString() };
           gauge.id = await dbAdd('gwWellGauges', gauge);

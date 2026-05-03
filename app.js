@@ -104,7 +104,7 @@ async function checkAuthStatus() {
 
 // ===== IndexedDB wrapper =====
 const DB_NAME = 'locdat';
-const DB_VERSION = 2;
+const DB_VERSION = 4;
 let _db = null;
 
 function openDB() {
@@ -120,7 +120,7 @@ function openDB() {
         s.createIndex('projectId', 'projectId');
       }
       if (!db.objectStoreNames.contains('spatial')) {
-        const s = db.createObjectStore('spatial', { keyPath: 'locationId' });
+        db.createObjectStore('spatial', { keyPath: 'locationId' });
       }
       if (!db.objectStoreNames.contains('soilBoreholes')) {
         const s = db.createObjectStore('soilBoreholes', { keyPath: 'id', autoIncrement: true });
@@ -173,6 +173,20 @@ function openDB() {
       }
       if (!db.objectStoreNames.contains('wellConstruction')) {
         db.createObjectStore('wellConstruction', { keyPath: 'boreholeId' });
+      }
+      // v3 additions
+      if (!db.objectStoreNames.contains('otherSamples')) {
+        const s = db.createObjectStore('otherSamples', { keyPath: 'id', autoIncrement: true });
+        s.createIndex('locationId', 'locationId');
+      }
+      // v4 additions
+      if (!db.objectStoreNames.contains('cocBatches')) {
+        const s = db.createObjectStore('cocBatches', { keyPath: 'id', autoIncrement: true });
+        s.createIndex('projectId', 'projectId');
+      }
+      if (!db.objectStoreNames.contains('cocQcSamples')) {
+        const s = db.createObjectStore('cocQcSamples', { keyPath: 'id', autoIncrement: true });
+        s.createIndex('cocBatchId', 'cocBatchId');
       }
     };
     req.onsuccess = () => { _db = req.result; resolve(req.result); };
@@ -375,17 +389,41 @@ function buttonGroup(id, options, value = '') {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       const current = container.dataset.value || '';
-      // If clicking already-selected, clear it (allows unsetting)
       if (current === o) {
         container.dataset.value = '';
       } else {
         container.dataset.value = o;
       }
-      // Re-render selection state
       for (const child of container.children) {
         if (child.dataset && child.dataset.val != null) {
           child.classList.toggle('selected', child.dataset.val === container.dataset.value);
         }
+      }
+      setDirty();
+    });
+    container.appendChild(btn);
+  }
+  return container;
+}
+
+// Multi-select button group — stores array of selected values
+// Pass value as array or comma-separated string
+function multiButtonGroup(id, options, value = []) {
+  const selected = new Set(Array.isArray(value) ? value : (value ? String(value).split(',').map(v => v.trim()).filter(Boolean) : []));
+  const container = el('div', { id, class: 'btn-group' });
+  const getValues = () => Array.from(selected);
+  // Expose values via property
+  Object.defineProperty(container, 'values', { get: getValues });
+  for (const o of options) {
+    const btn = el('button', { type: 'button', class: 'bg-btn' + (selected.has(o) ? ' selected' : ''), 'data-val': o }, o);
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (selected.has(o)) {
+        selected.delete(o);
+        btn.classList.remove('selected');
+      } else {
+        selected.add(o);
+        btn.classList.add('selected');
       }
       setDirty();
     });
