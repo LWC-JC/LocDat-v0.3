@@ -1,5 +1,5 @@
 // ===== LocDat configuration (from Configuration.xlsx) =====
-const APP_VERSION = '0.4.0';
+const APP_VERSION = '0.4.1';
 const APP_STAGE = 'Beta';
 const AUTH_CONFIG_URL = 'https://gist.githubusercontent.com/LWC-JC/5d9ec7b11578ed9007c22dfa5a54c508/raw/locdat-auth.json';
 const AUTH_CACHE_DAYS = 7;

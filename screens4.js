@@ -23,16 +23,39 @@ async function getDefaultCocBatchId(projectId, sampleType) {
   return pri ? pri.id : null;
 }
 
-// Fetch all field samples across every store that belong to a given batch
+// Fetch all field samples across every store that belong to a given batch,
+// enriched with the location's display code.
 async function getAllSamplesForBatch(batchId) {
   const stores = ['soilBoreSamples', 'soilSamples', 'gwSamples', 'svSamples', 'otherSamples'];
   const results = [];
+  const locCache = new Map();
+
+  const getLocCode = async (locId) => {
+    if (!locId) return '—';
+    if (locCache.has(locId)) return locCache.get(locId);
+    const loc = await dbGet('locations', locId);
+    const code = loc ? (loc.locationId || '—') : '—';
+    locCache.set(locId, code);
+    return code;
+  };
+
   for (const store of stores) {
     const all = await dbGetAll(store);
     for (const s of all) {
-      if (s.cocBatchId === batchId) results.push({ ...s, _store: store });
+      if (s.cocBatchId === batchId) {
+        let locCode = '—';
+        if (store === 'soilBoreSamples' && s.boreholeId) {
+          const bore = await dbGet('soilBoreholes', s.boreholeId);
+          if (bore) locCode = await getLocCode(bore.locationId);
+        } else if (s.locationId) {
+          locCode = await getLocCode(s.locationId);
+        }
+        results.push({ ...s, _store: store, _locCode: locCode });
+      }
     }
   }
+  // Sort by sample ID
+  results.sort((a, b) => (a.sampleId || '').localeCompare(b.sampleId || ''));
   return results;
 }
 
@@ -138,10 +161,11 @@ async function quickCreateCocBatch(projectId) {
             createdAt: new Date().toISOString()
           };
           batch.id = await dbAdd('cocBatches', batch);
+          setDirty(false);  // batch is saved — clear dirty so navigate() doesn't prompt discard
           m.close();
           toast('COC Batch created');
           resolve(batch);
-        }}, 'Create'),
+        }}, 'Save & Create'),
         el('button', { class: 'btn', onclick: () => { m.close(); resolve(null); }}, 'Cancel')
       ])
     ]);
@@ -254,7 +278,19 @@ async function screenCocBatch(batchId) {
 
   // Sent banner
   if (readOnly) {
-    content.appendChild(el('div', { class: 'sent-banner' }, '✓ This batch has been marked as SENT and is locked.'));
+    content.appendChild(el('div', { class: 'sent-banner', style: 'display:flex; align-items:center; gap:12px' }, [
+      el('span', { style: 'flex:1' }, '✓ This batch has been marked as SENT and is locked.'),
+      el('button', { class: 'btn btn-small', style: 'white-space:nowrap', onclick: async () => {
+        if (await confirmDialog('Unlock this batch to allow editing? You can re-send it afterwards.', 'Unlock Batch', 'Unlock', 'Cancel')) {
+          b.sent = false;
+          b.updatedAt = new Date().toISOString();
+          await dbPut('cocBatches', b);
+          setDirty(false);
+          toast('Batch unlocked');
+          navigate(screenCocBatch, batchId);
+        }
+      }}, 'Unlock')
+    ]));
   }
 
   // Delete button
@@ -361,11 +397,24 @@ async function screenCocBatch(batchId) {
   if (samplesInBatch.length === 0) {
     sampList.appendChild(el('p', { class: 'hub-empty' }, 'No samples assigned yet.'));
   } else {
+    // Column header
+    sampList.appendChild(el('div', { class: 'coc-sample-header' }, [
+      el('span', {}, 'Sample ID'),
+      el('span', {}, 'Location'),
+      el('span', {}, 'Date / Time'),
+      el('span', {}, 'Matrix'),
+      el('span', {}, 'Containers')
+    ]));
     for (const s of samplesInBatch) {
-      const matrixLabel = s.sampleMatrix || s._store.replace('Samples', '').replace('soilBore', 'Soil Bore ').replace(/([A-Z])/g, ' $1').trim();
-      sampList.appendChild(el('div', { class: 'coc-sample-row' }, [
-        el('span', { class: 'hub-item-id' }, s.sampleId || '—'),
-        el('span', { class: 'hub-item-name' }, matrixLabel + (s.depthFrom != null ? ` · ${s.depthFrom}–${s.depthTo}m` : ''))
+      const containers = Array.isArray(s.containers) && s.containers.length > 0
+        ? s.containers.join(', ')
+        : '—';
+      sampList.appendChild(el('div', { class: 'coc-sample-row coc-sample-row--cols' }, [
+        el('span', { class: 'coc-col-id' }, s.sampleId || '—'),
+        el('span', { class: 'coc-col' }, s._locCode || '—'),
+        el('span', { class: 'coc-col' }, s.dateTime || '—'),
+        el('span', { class: 'coc-col' }, s.sampleMatrix || '—'),
+        el('span', { class: 'coc-col coc-col--containers' }, containers)
       ]));
     }
   }
