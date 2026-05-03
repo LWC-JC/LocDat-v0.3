@@ -119,6 +119,7 @@ body { overscroll-behavior: none; }
 .borehole-grid .data-cell.empty-samp { cursor: pointer; }
 .borehole-grid .lith-cell { background: #fff; cursor: pointer; font-size: 12px; line-height: 1.25; border-bottom: 1px dotted #e8e8e8; align-items: flex-start; padding-top: 4px; overflow-wrap: anywhere; }
 .borehole-grid .lith-cell.has-layer { border-top: 1.5px solid #8a8a8a; border-bottom: 1.5px solid #8a8a8a; background: #f7fbf0; }
+.borehole-grid .lith-cell.has-layer.is-fill { background: #fff3e0; }
 .borehole-grid .lith-cell.empty-lith { cursor: pointer; }
 .borehole-grid .samp-id-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .borehole-grid .dup-badges { display: flex; gap: 2px; margin-left: 2px; flex-shrink: 0; }

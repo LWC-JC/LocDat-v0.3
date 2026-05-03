@@ -1,5 +1,5 @@
 // ===== LocDat configuration (from Configuration.xlsx) =====
-const APP_VERSION = '0.5.2';
+const APP_VERSION = '0.5.3';
 const APP_STAGE = 'Beta';
 const AUTH_CONFIG_URL = 'https://gist.githubusercontent.com/LWC-JC/5d9ec7b11578ed9007c22dfa5a54c508/raw/locdat-auth.json';
 const AUTH_CACHE_DAYS = 7;
@@ -9,9 +9,9 @@ const LITH_CONFIG = {
   minorConstituents: ['', 'Clayey', 'Silty', 'Sandy', 'Gravelly', 'Cobbled'],
   grainSize: ['', 'Fine', 'Fine-medium', 'Medium', 'Medium-course', 'Course'],
   plasticity: ['', 'Non-plastic', 'Low', 'Low-medium', 'Medium', 'Medium-high', 'High'],
-  primaryColour: ['', 'Brown', 'Red', 'Orange', 'Grey', 'Other - Black', 'Other - White', 'Other - Yellow', 'Other - Green', 'Other - Blue'],
+  primaryColour:   ['', 'Brown', 'Red', 'Orange', 'Yellow', 'White', 'Black', 'Grey', 'Green'],
   combination: ['', '-', 'Mottled'],
-  secondaryColour: ['', 'Brown', 'Red', 'Orange', 'Grey', 'Other - Black', 'Other - White', 'Other - Yellow', 'Other - Green', 'Other - Blue'],
+  secondaryColour: ['', 'Brown', 'Red', 'Orange', 'Yellow', 'White', 'Black', 'Grey', 'Green'],
   colourShade: ['', 'Light', 'Dark'],
   moisture: ['', 'Dry', 'dry-moist', 'Moist', 'Moist-wet', 'Wet'],
   consistencyCohesive: ['', 'Very soft', 'Soft', 'Firm', 'Stiff', 'Very stiff', 'Hard'],
@@ -19,7 +19,9 @@ const LITH_CONFIG = {
   grading: ['', 'Well', 'Poorly', 'Gap', 'Uniform'],
   particleShape: ['', 'Rounded', 'Sub-rounded', 'Sub-angular', 'Angular'],
   inclusions: ['', 'Brick fragments', 'Asphalt fragments', 'Concrete fragments', 'Ash', 'Slag', 'Black speck inclusions', 'potentially asbestos cement sheeting', 'Metal fragments', 'Glass fragments', 'Timber fragments', 'Plastic fragments', 'Wood fragments'],
-  inclusionAmount: ['', 'Trace', 'With']
+  inclusionAmount: ['', 'Trace', 'With'],
+  odour:   ['', 'Hydrocarbon', 'Organic', 'Sulfur', 'Chemical', 'Other', 'No odour'],
+  staining: ['', 'Dark', 'Light']
 };
 
 const SAMPLE_TYPES    = ['Normal', 'Field_D', 'Interlab_D', 'Rinse', 'Trip Blank'];

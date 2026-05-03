@@ -179,7 +179,8 @@ async function screenBoreholeOverview(boreId) {
     const r0 = Math.round((l.depthFrom || 0) / interval);
     const r1 = Math.max(r0 + 1, Math.round((l.depthTo || 0) / interval));
     for (let ri = r0; ri < r1; ri++) lithCoveredRows.add(ri);
-    const cell = el('div', { class: 'lith-cell has-layer', onclick: () => navigate(screenLithology, l.id) }, [
+    const isFill = (l.fillNatural === 'Fill');
+    const cell = el('div', { class: 'lith-cell has-layer' + (isFill ? ' is-fill' : ''), onclick: () => navigate(screenLithology, l.id) }, [
       el('span', {}, summarizeLith(l))
     ]);
     cell.style.gridRow = `${r0 + 2} / ${r1 + 2}`;
@@ -395,7 +396,9 @@ async function screenLithology(lithId) {
     ['Inclusions 2:', 'inclusion2', LITH_CONFIG.inclusions],
     ['Inclusion 2 amount:', 'inclusion2Amount', LITH_CONFIG.inclusionAmount],
     ['Inclusions 3:', 'inclusion3', LITH_CONFIG.inclusions],
-    ['Inclusion 3 amount:', 'inclusion3Amount', LITH_CONFIG.inclusionAmount]
+    ['Inclusion 3 amount:', 'inclusion3Amount', LITH_CONFIG.inclusionAmount],
+    ['Odour:', 'odour', LITH_CONFIG.odour],
+    ['Staining:', 'staining', LITH_CONFIG.staining]
   ];
   for (const [label, key, opts] of fields) {
     content.appendChild(lithBgRow(label, 'lith-' + key, opts, l[key] || ''));
@@ -435,6 +438,7 @@ async function createAndEditLithology(boreId, topDepth, bottomDepth) {
     grading: '', particleShape: '',
     inclusion1: '', inclusion1Amount: '', inclusion2: '', inclusion2Amount: '',
     inclusion3: '', inclusion3Amount: '',
+    odour: '', staining: '',
     notes: '',
     createdAt: new Date().toISOString()
   };

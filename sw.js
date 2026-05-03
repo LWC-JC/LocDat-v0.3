@@ -1,5 +1,5 @@
 // ===== LocDat service worker =====
-const CACHE_VERSION = 'locdat-v052';
+const CACHE_VERSION = 'locdat-v053';
 const CORE_ASSETS = [
   './',
   './index.html',
