@@ -118,7 +118,7 @@ async function cascadeDeleteLocation(locId) {
   await dbDelete('spatial', locId);
   const bores = await dbGetAllByIndex('soilBoreholes', 'locationId', locId);
   for (const b of bores) await cascadeDeleteBorehole(b.id);
-  for (const store of ['soilSamples', 'gwSamples', 'svSamples', 'otherSamples', 'gwWellGauges', 'fieldMeasurements', 'customRecords']) {
+  for (const store of ['soilSamples', 'gwSamples', 'svSamples', 'otherSamples', 'gwWellGauges', 'fieldMeasurements', 'customRecords', 'waterParams']) {
     const rows = await dbGetAllByIndex(store, 'locationId', locId);
     for (const r of rows) await dbDelete(store, r.id);
   }
@@ -164,11 +164,7 @@ async function screenLocations(projectId) {
 
   $app().appendChild(header({
     title: loc.locationId || '(new location)',
-    breadcrumb: project.projectName || project.projectNumber,
-    onEdit: () => navigate(async () => {
-      clearApp();
-      await renderLocationsWithEditProject(projectId);
-    })
+    breadcrumb: project.projectName || project.projectNumber
   }));
 
   const content = el('div', { class: 'content' });
@@ -236,12 +232,12 @@ async function screenLocations(projectId) {
     content.appendChild(sampBlock);
   }
 
-  // Groundwater Samples
+  // Water Samples
   const gwSamps = await dbGetAllByIndex('gwSamples', 'locationId', loc.id);
   if (gwSamps.length > 0 || await hasAttrGroup(loc.id, 'gwSample')) {
     const blk = el('div', { class: 'attr-group' }, [
       el('div', { class: 'attr-group-header' }, [
-        el('h3', {}, 'Groundwater Samples'),
+        el('h3', {}, 'Water Samples'),
         el('button', { class: 'btn-icon', onclick: () => createAndEditGwSample(loc.id) }, '+')
       ])
     ]);
@@ -325,6 +321,23 @@ async function screenLocations(projectId) {
       ]));
     }
     content.appendChild(fmBlock);
+  }
+
+  // Water Parameters
+  const wps = await dbGetAllByIndex('waterParams', 'locationId', loc.id);
+  if (wps.length > 0 || await hasAttrGroup(loc.id, 'waterParams')) {
+    const wpBlk = el('div', { class: 'attr-group' }, [
+      el('div', { class: 'attr-group-header' }, [
+        el('h3', {}, 'Water Parameters'),
+        el('button', { class: 'btn-icon', onclick: () => navigate(screenWaterParams, loc.id) }, '›')
+      ])
+    ]);
+    const count = wps.length;
+    wpBlk.appendChild(el('div', { class: 'attr-item' }, [
+      el('span', { class: 'item-label' }, count === 0 ? 'No readings yet' : `${count} reading${count === 1 ? '' : 's'}`),
+      el('button', { class: 'item-edit', onclick: () => navigate(screenWaterParams, loc.id) }, 'Open')
+    ]));
+    content.appendChild(wpBlk);
   }
 
   // Custom1
@@ -413,6 +426,9 @@ function addAttrGroupBtn(projectId, locId, content) {
           const samp = { locationId: locId, sampleId: '', depthFrom: 0, depthTo: 0, dateTime: '', sampleType: 'Normal', sampleMatrix: 'Other', sampleMethod: '', sampler: '', sampleCode: '', containers: [], notes: '', createdAt: new Date().toISOString() };
           samp.id = await dbAdd('otherSamples', samp);
           navigate(screenOtherSample, samp.id);
+        } else if (o.key === 'waterParams') {
+          // No initial record created — navigate to the WP list which has its own Add button
+          navigate(screenWaterParams, locId);
         } else if (o.key === 'gwWellGauge') {
           const gauge = { locationId: locId, dateTime: '', wellDepth: null, depthToWater: null, gaugedBy: '', notes: '', createdAt: new Date().toISOString() };
           gauge.id = await dbAdd('gwWellGauges', gauge);

@@ -365,6 +365,7 @@ async function screenExport() {
       if ((await dbGetAllByIndex('gwWellGauges', 'locationId', loc.id)).length) locGroups.add('gwWellGauge');
       if ((await dbGetAllByIndex('fieldMeasurements', 'locationId', loc.id)).length) locGroups.add('fieldMeasurement');
       if ((await dbGetAllByIndex('customRecords', 'locationId', loc.id)).length) locGroups.add('custom1');
+      if ((await dbGetAllByIndex('waterParams', 'locationId', loc.id)).length) locGroups.add('waterParams');
 
       const locCb = el('input', { type: 'checkbox', class: 'export-checkbox' });
       const locSel = { cb: locCb, groups: new Map() };
@@ -383,10 +384,11 @@ async function screenExport() {
         spatial: 'Spatial info',
         soilBorehole: 'Soil Boreholes',
         soilSample: 'Soil Samples',
-        gwSample: 'Groundwater Samples',
+        gwSample: 'Water Samples',
         svSample: 'Soil Vapour Samples',
         gwWellGauge: 'Groundwater Well Gauges',
         fieldMeasurement: 'Field Measurements',
+        waterParams: 'Water Parameters',
         custom1: 'Custom 1'
       };
       for (const [key, name] of Object.entries(groupList)) {
@@ -536,6 +538,24 @@ async function exportXlsx(projectId, selLocs) {
   if (gaugeRows.length > 1) sheets['GW Well Gauges'] = gaugeRows;
   if (wellRows.length > 1) sheets['GW Well Construction'] = wellRows;
   if (customRows.length > 1) sheets['Custom'] = customRows;
+
+  // Water Parameters sheet — all readings for all selected locations
+  const wpRows = [['Location_Code', 'Date_Time', 'Volume_Removed_L', 'Water_Depth_m', 'pH', 'EC', 'EC_Units', 'Redox_mV', 'Temperature_C', 'Dissolved_Oxygen', 'DO_Units', 'Odour', 'Sheen', 'Turbidity', 'Notes']];
+  for (const { locId } of selLocs) {
+    const loc = await dbGet('locations', locId);
+    const wps = await dbGetAllByIndex('waterParams', 'locationId', locId);
+    wps.sort((a, b) => (a.dateTime || '').localeCompare(b.dateTime || ''));
+    for (const w of wps) {
+      wpRows.push([
+        loc.locationId, w.dateTime, w.volumeRemoved ?? '', w.waterDepth ?? '',
+        w.pH ?? '', w.ec ?? '', w.ecUnits || 'μS/cm',
+        w.redox ?? '', w.temperature ?? '',
+        w.dissolvedOxygen ?? '', w.doUnits || 'ppm',
+        w.odour || '', w.sheen || '', w.turbidity || '', w.notes || ''
+      ]);
+    }
+  }
+  if (wpRows.length > 1) sheets['Water Parameters'] = wpRows;
 
   // COC Batches sheet (all batches for this project)
   const allBatches = await dbGetAllByIndex('cocBatches', 'projectId', projectId);
@@ -724,7 +744,7 @@ async function screenSettings() {
     formRow('Soil Bore ID prefix:', textInput('set-sb', a.soilBorePrefix || '')),
     formRow('Soil Bore Sample prefix:', textInput('set-sbs', a.soilBoreSamplePrefix || '[SoilBoreId]_[from]-[to]')),
     formRow('Soil Sample ID prefix:', textInput('set-ss', a.soilSamplePrefix || 'SS')),
-    formRow('GW Sample ID prefix:', textInput('set-gw', a.gwSamplePrefix || 'GW')),
+    formRow('Water Sample ID prefix:', textInput('set-gw', a.gwSamplePrefix || 'GW')),
     formRow('SV Sample ID prefix:', textInput('set-sv', a.svSamplePrefix || 'SV')),
     formRow('Other Sample ID prefix:', textInput('set-os', a.otherSamplePrefix || 'OS')),
     el('div', { class: 'text-small' }, 'Soil Bore Sample tokens: [SoilBoreId] = bore ID, [from] = depth from, [to] = depth to. Example: SB01_0.0-0.1')
@@ -925,7 +945,7 @@ function buildMatrixSampleScreen(config) {
 }
 
 const screenGwSample = buildMatrixSampleScreen({
-  store: 'gwSamples', title: 'Groundwater Sample',
+  store: 'gwSamples', title: 'Water Sample',
   prefixKey: 'gwSamplePrefix', defaultPrefix: 'GW',
   photoKey: 'gwsamp',
   fromLabel: 'Sample Depth from (m):', toLabel: 'Sample Depth to (m):',

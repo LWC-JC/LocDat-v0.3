@@ -1,5 +1,5 @@
 // ===== LocDat configuration (from Configuration.xlsx) =====
-const APP_VERSION = '0.4.1';
+const APP_VERSION = '0.5.2';
 const APP_STAGE = 'Beta';
 const AUTH_CONFIG_URL = 'https://gist.githubusercontent.com/LWC-JC/5d9ec7b11578ed9007c22dfa5a54c508/raw/locdat-auth.json';
 const AUTH_CACHE_DAYS = 7;
@@ -34,6 +34,12 @@ const SAMPLE_METHODS = SAMPLE_METHODS_SOIL; // legacy fallback
 const COC_LAB_ROLES   = ['Primary', 'Secondary'];
 const COC_QC_TYPES    = ['RINSE', 'TB', 'TS'];
 const COC_QC_LABELS   = { RINSE: 'Equipment Rinse', TB: 'Trip Blank', TS: 'Trip Spike' };
+
+const WP_EC_UNITS      = ['μS/cm', 'mS/cm'];
+const WP_DO_UNITS      = ['ppm', '%'];
+const WP_ODOUR         = ['', 'Hydrocarbon', 'Organic', 'Sweet', 'Other'];
+const WP_SHEEN         = ['No', 'Yes'];
+const WP_TURBIDITY     = ['None', 'Low', 'Moderate', 'High'];
 
 const MEASUREMENT_CONFIG = {
   types: ['', 'PID', 'RemScan'],
@@ -73,9 +79,10 @@ const FILL_NATURAL_OPTIONS = ['', 'Fill', 'Natural', 'Re-worked Natural'];
 const ATTR_GROUPS = [
   { key: 'soilBorehole',     name: 'Soil Bore',                multi: true },
   { key: 'soilSample',       name: 'Soil Sample',              multi: true },
-  { key: 'gwSample',         name: 'Groundwater Sample',       multi: true },
+  { key: 'gwSample',         name: 'Water Sample',             multi: true },
   { key: 'svSample',         name: 'Soil Vapour Sample',       multi: true },
   { key: 'otherSample',      name: 'Other Sample',             multi: true },
+  { key: 'waterParams',      name: 'Water Parameters',         multi: false },
   { key: 'gwWellGauge',      name: 'Groundwater Well Gauge',   multi: true },
   { key: 'fieldMeasurement', name: 'Field Measurement',        multi: true },
   { key: 'custom1',          name: 'Custom 1',                 multi: true }

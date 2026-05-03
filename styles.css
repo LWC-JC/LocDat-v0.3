@@ -222,3 +222,12 @@ body { overscroll-behavior: none; }
 .coc-col-id { font-weight: 600; font-size: 13px; color: #222; }
 .coc-col { font-size: 12px; color: #555; }
 .coc-col--containers { font-size: 11px; color: #777; }
+
+/* --- Water Parameters table --- */
+.wp-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 8px; border: 1px solid #ddd; border-radius: 4px; }
+.wp-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 720px; }
+.wp-table thead th { background: #F1F8E9; color: #33691E; font-weight: 600; padding: 8px 10px; text-align: left; border-bottom: 2px solid #C5E1A5; white-space: nowrap; position: sticky; top: 0; }
+.wp-table tbody tr.wp-row { cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+.wp-table tbody tr.wp-row:last-child { border-bottom: none; }
+.wp-table tbody tr.wp-row:active { background: #F9FBF6; }
+.wp-table td { padding: 8px 10px; color: #333; white-space: nowrap; vertical-align: middle; }

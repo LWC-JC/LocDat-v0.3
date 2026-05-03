@@ -104,7 +104,7 @@ async function checkAuthStatus() {
 
 // ===== IndexedDB wrapper =====
 const DB_NAME = 'locdat';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 let _db = null;
 
 function openDB() {
@@ -187,6 +187,11 @@ function openDB() {
       if (!db.objectStoreNames.contains('cocQcSamples')) {
         const s = db.createObjectStore('cocQcSamples', { keyPath: 'id', autoIncrement: true });
         s.createIndex('cocBatchId', 'cocBatchId');
+      }
+      // v5 additions
+      if (!db.objectStoreNames.contains('waterParams')) {
+        const s = db.createObjectStore('waterParams', { keyPath: 'id', autoIncrement: true });
+        s.createIndex('locationId', 'locationId');
       }
     };
     req.onsuccess = () => { _db = req.result; resolve(req.result); };
@@ -301,7 +306,7 @@ function header(opts) {
   ]);
   const titleRow = el('div', { class: 'hdr-row' }, [
     el('div', { class: 'hdr-title' }, opts.title || ''),
-    opts.onEdit ? el('button', { class: 'hdr-edit', onclick: opts.onEdit }, 'Edit') : null
+    opts.onEdit ? el('button', { class: 'hdr-edit', onclick: opts.onEdit }, opts.editLabel || 'Edit') : null
   ]);
   const children = [row1, titleRow];
   if (opts.subtitle) children.push(el('div', { class: 'hdr-sub' }, opts.subtitle));

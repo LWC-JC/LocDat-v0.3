@@ -176,7 +176,7 @@ async function quickCreateCocBatch(projectId) {
 async function screenProjectHub(projectId) {
   clearApp();
   const proj = await dbGet('projects', projectId);
-  $app().appendChild(header({ title: proj.projectName, breadcrumb: proj.projectNumber || 'Project' }));
+  $app().appendChild(header({ title: proj.projectName, breadcrumb: proj.projectNumber || 'Project', onEdit: () => navigate(screenEditProject, projectId), editLabel: 'Edit Project' }));
   const content = el('div', { class: 'content' });
 
   // ---- Locations section ----
@@ -555,4 +555,222 @@ async function createAndEditCocQcSample(batchId, sampleType) {
   };
   obj.id = await dbAdd('cocQcSamples', obj);
   navigate(screenCocQcSample, obj.id);
+}
+
+// ===== Screen: Water Parameters List =====
+async function screenWaterParams(locationId) {
+  clearApp();
+  const loc  = await dbGet('locations', locationId);
+  const proj = await dbGet('projects', loc.projectId);
+  $app().appendChild(header({ title: 'Water Parameters', breadcrumb: loc.locationId || 'Location' }));
+  const content = el('div', { class: 'content' });
+
+  // Load readings sorted oldest → newest
+  const all = await dbGetAllByIndex('waterParams', 'locationId', locationId);
+  all.sort((a, b) => (a.dateTime || '').localeCompare(b.dateTime || ''));
+
+  // Add New button
+  content.appendChild(el('div', { style: 'text-align:right; margin-bottom:12px' }, [
+    el('button', { class: 'btn btn-primary', onclick: () => createAndEditWaterParam(locationId) }, '+ Add Reading')
+  ]));
+
+  if (all.length === 0) {
+    content.appendChild(el('p', { class: 'hub-empty' }, 'No readings yet. Tap + Add Reading to start.'));
+  } else {
+    // Scrollable summary table
+    const wrap = el('div', { class: 'wp-table-wrap' });
+    const tbl  = el('table', { class: 'wp-table' });
+    const thead = el('thead', {}, [
+      el('tr', {}, [
+        el('th', {}, 'Date / Time'),
+        el('th', {}, 'Vol (L)'),
+        el('th', {}, 'Depth (m)'),
+        el('th', {}, 'pH'),
+        el('th', {}, 'EC'),
+        el('th', {}, 'Redox (mV)'),
+        el('th', {}, 'Temp (°C)'),
+        el('th', {}, 'DO'),
+        el('th', {}, 'Odour'),
+        el('th', {}, 'Sheen'),
+        el('th', {}, 'Turbidity'),
+        el('th', {}, '')
+      ])
+    ]);
+    tbl.appendChild(thead);
+    const tbody = el('tbody', {});
+    for (const wp of all) {
+      const ecStr = wp.ec != null ? `${wp.ec} ${wp.ecUnits || 'μS/cm'}` : '—';
+      const doStr = wp.dissolvedOxygen != null ? `${wp.dissolvedOxygen} ${wp.doUnits || 'ppm'}` : '—';
+      const tr = el('tr', { class: 'wp-row', onclick: () => navigate(screenWaterParamEdit, wp.id) }, [
+        el('td', {}, wp.dateTime || '—'),
+        el('td', {}, wp.volumeRemoved ?? '—'),
+        el('td', {}, wp.waterDepth ?? '—'),
+        el('td', {}, wp.pH ?? '—'),
+        el('td', {}, ecStr),
+        el('td', {}, wp.redox ?? '—'),
+        el('td', {}, wp.temperature ?? '—'),
+        el('td', {}, doStr),
+        el('td', {}, wp.odour || '—'),
+        el('td', {}, wp.sheen || '—'),
+        el('td', {}, wp.turbidity || '—'),
+        el('td', {}, el('span', { class: 'hub-item-arrow' }, '›'))
+      ]);
+      tbody.appendChild(tr);
+    }
+    tbl.appendChild(tbody);
+    wrap.appendChild(tbl);
+    content.appendChild(wrap);
+  }
+
+  // Collect Sample button
+  content.appendChild(el('div', { style: 'margin-top:24px; border-top:1px solid #ddd; padding-top:16px' }, [
+    el('p', { style: 'font-size:13px; color:#666; margin:0 0 10px' }, 'Ready to collect a water sample from this location?'),
+    el('button', { class: 'btn btn-primary', onclick: async () => {
+      await createAndEditGwSample(locationId);
+    }}, '💧 Collect Sample')
+  ]));
+
+  $app().appendChild(content);
+}
+
+// ----- Screen: Water Parameter Edit -----
+async function screenWaterParamEdit(wpId) {
+  clearApp();
+  const wp  = await dbGet('waterParams', wpId);
+  const loc = await dbGet('locations', wp.locationId);
+  $app().appendChild(header({ title: 'Water Parameters', breadcrumb: loc.locationId || 'Location' }));
+  const content = el('div', { class: 'content' });
+
+  // Delete button
+  content.appendChild(el('div', { class: 'row', style: 'justify-content:flex-end; margin-bottom:4px' }, [
+    el('button', { class: 'btn btn-danger btn-small', onclick: async () => {
+      if (await confirmDialog('Delete this water parameter reading?', 'Delete')) {
+        await dbDelete('waterParams', wpId);
+        setDirty(false); toast('Reading deleted'); navBack();
+      }
+    }}, 'Delete')
+  ]));
+
+  // Date / Time
+  const dtI = textInput('wp-dt', wp.dateTime || '');
+  content.appendChild(el('div', { class: 'form-field' }, [
+    el('label', {}, 'Date / Time:'),
+    el('div', { class: 'field-group' }, [
+      dtI,
+      el('button', { class: 'btn btn-small', onclick: () => { dtI.value = nowStr(); setDirty(); }}, 'Now')
+    ])
+  ]));
+
+  // Volume removed
+  content.appendChild(formRow('Volume Removed (L):', depthInputWithButtons('wp-vol', wp.volumeRemoved ?? '')));
+
+  // Water depth
+  content.appendChild(formRow('Water Depth (m):', depthInputWithButtons('wp-wd', wp.waterDepth ?? '')));
+
+  // pH
+  content.appendChild(formRow('pH:', el('input', { id: 'wp-ph', type: 'number', step: '0.01', inputmode: 'decimal', value: wp.pH ?? '', oninput: () => setDirty() })));
+
+  // EC with units
+  const ecI = el('input', { id: 'wp-ec', type: 'number', step: '0.1', inputmode: 'decimal', value: wp.ec ?? '', style: 'flex:1', oninput: () => setDirty() });
+  const ecUnitsI = buildInlineSelect('wp-ec-units', WP_EC_UNITS, wp.ecUnits || 'μS/cm');
+  content.appendChild(el('div', { class: 'form-field' }, [
+    el('label', {}, 'Electrical Conductivity:'),
+    el('div', { class: 'field-group' }, [ecI, ecUnitsI])
+  ]));
+
+  // Redox
+  content.appendChild(formRow('Redox (mV):', el('input', { id: 'wp-redox', type: 'number', step: '1', inputmode: 'decimal', value: wp.redox ?? '', oninput: () => setDirty() })));
+
+  // Temperature
+  content.appendChild(formRow('Temperature (°C):', el('input', { id: 'wp-temp', type: 'number', step: '0.1', inputmode: 'decimal', value: wp.temperature ?? '', oninput: () => setDirty() })));
+
+  // Dissolved Oxygen with units
+  const doI = el('input', { id: 'wp-do', type: 'number', step: '0.01', inputmode: 'decimal', value: wp.dissolvedOxygen ?? '', style: 'flex:1', oninput: () => setDirty() });
+  const doUnitsI = buildInlineSelect('wp-do-units', WP_DO_UNITS, wp.doUnits || 'ppm');
+  content.appendChild(el('div', { class: 'form-field' }, [
+    el('label', {}, 'Dissolved Oxygen:'),
+    el('div', { class: 'field-group' }, [doI, doUnitsI])
+  ]));
+
+  // Odour — button group
+  const odourBg = buttonGroup('wp-odour', WP_ODOUR, wp.odour || '');
+  content.appendChild(el('div', { class: 'form-field vertical lith-bg-row' }, [
+    el('label', {}, 'Odour:'), odourBg
+  ]));
+
+  // Sheen — button group (Yes / No)
+  const sheenBg = buttonGroup('wp-sheen', WP_SHEEN, wp.sheen || 'No');
+  content.appendChild(el('div', { class: 'form-field vertical lith-bg-row' }, [
+    el('label', {}, 'Sheen:'), sheenBg
+  ]));
+
+  // Turbidity — button group
+  const turbBg = buttonGroup('wp-turb', WP_TURBIDITY, wp.turbidity || 'None');
+  content.appendChild(el('div', { class: 'form-field vertical lith-bg-row' }, [
+    el('label', {}, 'Turbidity:'), turbBg
+  ]));
+
+  // Notes
+  content.appendChild(el('div', { class: 'form-field vertical' }, [
+    el('label', {}, 'Notes:'),
+    textArea('wp-notes', wp.notes || '')
+  ]));
+
+  content.appendChild(saveBar(async () => {
+    wp.dateTime        = dtI.value;
+    wp.volumeRemoved   = parseFloat(getVal('wp-vol')) || null;
+    wp.waterDepth      = parseFloat(getVal('wp-wd'))  || null;
+    wp.pH              = parseFloat(getVal('wp-ph'))  || null;
+    wp.ec              = parseFloat(getVal('wp-ec'))  || null;
+    wp.ecUnits         = getVal('wp-ec-units') || 'μS/cm';
+    wp.redox           = parseFloat(getVal('wp-redox')) || null;
+    wp.temperature     = parseFloat(getVal('wp-temp'))  || null;
+    wp.dissolvedOxygen = parseFloat(getVal('wp-do'))    || null;
+    wp.doUnits         = getVal('wp-do-units') || 'ppm';
+    wp.odour           = odourBg.dataset.value || '';
+    wp.sheen           = sheenBg.dataset.value || 'No';
+    wp.turbidity       = turbBg.dataset.value  || 'None';
+    wp.notes           = getVal('wp-notes');
+    wp.updatedAt       = new Date().toISOString();
+    await dbPut('waterParams', wp);
+  }));
+
+  $app().appendChild(content);
+}
+
+// Inline unit selector (compact select styled inline with an input)
+function buildInlineSelect(id, options, value) {
+  const sel = document.createElement('select');
+  sel.id = id;
+  sel.style.cssText = 'border:none; border-bottom:1px solid #ccc; padding:8px 2px; font-size:14px; background:transparent; color:#444; margin-left:6px;';
+  sel.addEventListener('change', () => setDirty());
+  for (const o of options) {
+    const opt = document.createElement('option');
+    opt.value = o; opt.textContent = o;
+    if (o === value) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  return sel;
+}
+
+// Create a new water parameter reading and open it
+async function createAndEditWaterParam(locationId) {
+  const wp = {
+    locationId,
+    dateTime: nowStr(),
+    volumeRemoved: null,
+    waterDepth: null,
+    pH: null,
+    ec: null,     ecUnits: 'μS/cm',
+    redox: null,
+    temperature: null,
+    dissolvedOxygen: null, doUnits: 'ppm',
+    odour: '',
+    sheen: 'No',
+    turbidity: 'None',
+    notes: '',
+    createdAt: new Date().toISOString()
+  };
+  wp.id = await dbAdd('waterParams', wp);
+  navigate(screenWaterParamEdit, wp.id);
 }
