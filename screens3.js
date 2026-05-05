@@ -577,6 +577,19 @@ async function exportXlsx(projectId, selLocs) {
   }
   if (qcRows.length > 1) sheets['COC QC Samples'] = qcRows;
 
+  // Daily Field Notes sheet
+  const fndRows = [['Project_Number', 'Date', 'Person', 'Time', 'Notes']];
+  const noteDays = await dbGetAllByIndex('fieldNoteDays', 'projectId', projectId);
+  noteDays.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  for (const nd of noteDays) {
+    const entries = await dbGetAllByIndex('fieldNoteEntries', 'fieldNoteDayId', nd.id);
+    entries.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    for (const e of entries) {
+      fndRows.push([proj.projectNumber, nd.date, nd.person, e.time, e.notes]);
+    }
+  }
+  if (fndRows.length > 1) sheets['Daily Field Notes'] = fndRows;
+
   // Build workbook
   const wb = XLSX.utils.book_new();
   for (const [sheetName, rows] of Object.entries(sheets)) {

@@ -104,7 +104,7 @@ async function checkAuthStatus() {
 
 // ===== IndexedDB wrapper =====
 const DB_NAME = 'locdat';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 let _db = null;
 
 function openDB() {
@@ -192,6 +192,15 @@ function openDB() {
       if (!db.objectStoreNames.contains('waterParams')) {
         const s = db.createObjectStore('waterParams', { keyPath: 'id', autoIncrement: true });
         s.createIndex('locationId', 'locationId');
+      }
+      // v6 additions
+      if (!db.objectStoreNames.contains('fieldNoteDays')) {
+        const s = db.createObjectStore('fieldNoteDays', { keyPath: 'id', autoIncrement: true });
+        s.createIndex('projectId', 'projectId');
+      }
+      if (!db.objectStoreNames.contains('fieldNoteEntries')) {
+        const s = db.createObjectStore('fieldNoteEntries', { keyPath: 'id', autoIncrement: true });
+        s.createIndex('fieldNoteDayId', 'fieldNoteDayId');
       }
     };
     req.onsuccess = () => { _db = req.result; resolve(req.result); };

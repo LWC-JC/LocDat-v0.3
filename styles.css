@@ -232,3 +232,16 @@ body { overscroll-behavior: none; }
 .wp-table tbody tr.wp-row:last-child { border-bottom: none; }
 .wp-table tbody tr.wp-row:active { background: #F9FBF6; }
 .wp-table td { padding: 8px 10px; color: #333; white-space: nowrap; vertical-align: middle; }
+
+/* --- Daily Field Notes entry table --- */
+.fnd-table-wrap { border: 1px solid #ddd; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+.fnd-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.fnd-table thead th { background: #F1F8E9; color: #33691E; font-weight: 600; padding: 8px 10px; text-align: left; border-bottom: 2px solid #C5E1A5; }
+.fnd-table .fnd-row { border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+.fnd-table .fnd-row:last-of-type { border-bottom: none; }
+.fnd-time-input { width: 90px; border: none; border-bottom: 1px solid #ccc; padding: 6px 4px; font-size: 14px; background: transparent; font-family: monospace; }
+.fnd-time-input:focus { outline: none; border-bottom: 2px solid #8BC34A; }
+.fnd-notes-input { width: 100%; border: none; border-bottom: 1px solid #ccc; padding: 6px 4px; font-size: 14px; background: transparent; resize: none; font-family: inherit; min-height: 44px; box-sizing: border-box; }
+.fnd-notes-input:focus { outline: none; border-bottom: 2px solid #8BC34A; }
+.fnd-table td { padding: 6px 8px; }
+.fnd-add-row { background: #fafafa; }

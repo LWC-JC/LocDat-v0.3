@@ -263,6 +263,43 @@ async function screenProjectHub(projectId) {
   }
 
   content.appendChild(el('div', { class: 'hub-section' }, [cocsHeader, cocsBody]));
+
+  // ---- Daily Field Notes section ----
+  const noteDays = await dbGetAllByIndex('fieldNoteDays', 'projectId', projectId);
+  noteDays.sort((a, b) => (b.date || '').localeCompare(a.date || '')); // newest first
+
+  let notesOpen = true;
+  const notesBody = el('div', { class: 'hub-section-body' });
+  const notesToggle = el('button', { class: 'hub-toggle', onclick: () => {
+    notesOpen = !notesOpen;
+    notesBody.style.display = notesOpen ? '' : 'none';
+    notesToggle.textContent = notesOpen ? '▾' : '▸';
+  }}, '▾');
+
+  const notesHeader = el('div', { class: 'hub-section-header' }, [
+    el('h3', {}, `Daily Field Notes (${noteDays.length})`),
+    notesToggle,
+    el('button', { class: 'btn btn-small hub-add', onclick: async () => {
+      await createAndEditFieldNoteDay(projectId);
+    }}, '+ New')
+  ]);
+
+  for (const nd of noteDays) {
+    const row = el('div', { class: 'hub-list-item', onclick: () => navigate(screenFieldNoteDay, nd.id) }, [
+      el('div', { class: 'hub-item-main' }, [
+        el('span', { class: 'hub-item-id' }, nd.date || '(no date)'),
+        el('span', { class: 'hub-item-name' }, nd.person || '')
+      ]),
+      el('span', { class: 'hub-item-arrow' }, '›')
+    ]);
+    notesBody.appendChild(row);
+  }
+
+  if (noteDays.length === 0) {
+    notesBody.appendChild(el('p', { class: 'hub-empty' }, 'No daily notes yet. Tap + New to create one.'));
+  }
+
+  content.appendChild(el('div', { class: 'hub-section' }, [notesHeader, notesBody]));
   $app().appendChild(content);
 }
 
@@ -773,4 +810,162 @@ async function createAndEditWaterParam(locationId) {
   };
   wp.id = await dbAdd('waterParams', wp);
   navigate(screenWaterParamEdit, wp.id);
+}
+
+// ===== Screen: Daily Field Note Day =====
+async function screenFieldNoteDay(dayId) {
+  clearApp();
+  const nd   = await dbGet('fieldNoteDays', dayId);
+  const proj = await dbGet('projects', nd.projectId);
+
+  $app().appendChild(header({ title: 'Daily Field Notes', breadcrumb: proj.projectName || proj.projectNumber }));
+  const content = el('div', { class: 'content' });
+
+  // Delete button
+  content.appendChild(el('div', { class: 'row', style: 'justify-content:flex-end; margin-bottom:4px' }, [
+    el('button', { class: 'btn btn-danger btn-small', onclick: async () => {
+      if (await confirmDialog('Delete this Daily Field Note and all its entries?', 'Delete')) {
+        const entries = await dbGetAllByIndex('fieldNoteEntries', 'fieldNoteDayId', dayId);
+        for (const e of entries) await dbDelete('fieldNoteEntries', e.id);
+        await dbDelete('fieldNoteDays', dayId);
+        setDirty(false); toast('Deleted'); navBack();
+      }
+    }}, 'Delete')
+  ]));
+
+  // Date field
+  const dateI = el('input', { type: 'date', id: 'fnd-date', value: nd.date || '', oninput: () => setDirty() });
+  content.appendChild(formRow('Date:', dateI));
+
+  // Person field
+  const personI = textInput('fnd-person', nd.person || '');
+  content.appendChild(formRow('Person:', personI));
+
+  content.appendChild(saveBar(async () => {
+    nd.date   = dateI.value;
+    nd.person = getVal('fnd-person');
+    nd.updatedAt = new Date().toISOString();
+    await dbPut('fieldNoteDays', nd);
+  }));
+
+  // ---- Entries table ----
+  content.appendChild(el('div', { class: 'settings-section', style: 'margin-top:20px' }, [
+    el('h3', {}, 'Notes')
+  ]));
+
+  const tableWrap = el('div', { class: 'fnd-table-wrap' });
+  content.appendChild(tableWrap);
+
+  async function rebuildTable() {
+    tableWrap.innerHTML = '';
+    const entries = await dbGetAllByIndex('fieldNoteEntries', 'fieldNoteDayId', dayId);
+    entries.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+    const tbl   = el('table', { class: 'fnd-table' });
+    const thead = el('thead', {}, [
+      el('tr', {}, [
+        el('th', { style: 'width:100px' }, 'Time'),
+        el('th', {}, 'Notes'),
+        el('th', { style: 'width:36px' }, '')
+      ])
+    ]);
+    tbl.appendChild(thead);
+    const tbody = el('tbody', {});
+
+    for (const entry of entries) {
+      tbody.appendChild(makeEntryRow(entry, rebuildTable));
+    }
+
+    // Blank add-row at bottom
+    const addRow = el('tr', { class: 'fnd-add-row' });
+    const addTd = el('td', { colspan: '3', style: 'text-align:center; padding:10px' }, [
+      el('button', { class: 'btn btn-small', onclick: async () => {
+        await createFieldNoteEntry(dayId);
+        await rebuildTable();
+      }}, '+ Add Entry')
+    ]);
+    addRow.appendChild(addTd);
+    tbody.appendChild(addRow);
+    tbl.appendChild(tbody);
+    tableWrap.appendChild(tbl);
+  }
+
+  await rebuildTable();
+  $app().appendChild(content);
+}
+
+function makeEntryRow(entry, rebuildFn) {
+  const tr = el('tr', { class: 'fnd-row' });
+
+  // Time cell — editable, auto-saves on blur
+  const timeInput = el('input', {
+    type: 'text',
+    class: 'fnd-time-input',
+    value: entry.time || '',
+    placeholder: 'HH:MM'
+  });
+  timeInput.addEventListener('blur', async () => {
+    entry.time = timeInput.value.trim();
+    entry.updatedAt = new Date().toISOString();
+    await dbPut('fieldNoteEntries', entry);
+  });
+
+  // Notes cell — textarea, auto-saves on blur
+  const notesInput = el('textarea', { class: 'fnd-notes-input', rows: '2', placeholder: 'Enter notes...' });
+  notesInput.value = entry.notes || '';
+  notesInput.addEventListener('blur', async () => {
+    entry.notes = notesInput.value;
+    entry.updatedAt = new Date().toISOString();
+    await dbPut('fieldNoteEntries', entry);
+  });
+  // Grow on input
+  notesInput.addEventListener('input', () => {
+    notesInput.style.height = 'auto';
+    notesInput.style.height = notesInput.scrollHeight + 'px';
+  });
+
+  // Delete button
+  const delBtn = el('button', { class: 'btn-icon', style: 'color:#E0594E', onclick: async () => {
+    await dbDelete('fieldNoteEntries', entry.id);
+    await rebuildFn();
+  }}, '×');
+
+  const timeTd  = el('td', {}, [timeInput]);
+  const notesTd = el('td', {}, [notesInput]);
+  const delTd   = el('td', { style: 'text-align:center; vertical-align:top; padding-top:8px' }, [delBtn]);
+
+  tr.appendChild(timeTd);
+  tr.appendChild(notesTd);
+  tr.appendChild(delTd);
+  return tr;
+}
+
+// Create a new entry with current time
+async function createFieldNoteEntry(dayId) {
+  const now  = new Date();
+  const time = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+  const entry = {
+    fieldNoteDayId: dayId,
+    time,
+    notes: '',
+    createdAt: now.toISOString()
+  };
+  entry.id = await dbAdd('fieldNoteEntries', entry);
+  return entry;
+}
+
+// Create a new day record and navigate to it
+async function createAndEditFieldNoteDay(projectId) {
+  const settings = await getSettings();
+  const today = new Date().toISOString().slice(0, 10);
+  const nd = {
+    projectId,
+    date: today,
+    person: settings.userName || '',
+    createdAt: new Date().toISOString()
+  };
+  nd.id = await dbAdd('fieldNoteDays', nd);
+  // Pre-create one entry so the user lands on a ready-to-use table
+  await createFieldNoteEntry(nd.id);
+  navigate(screenFieldNoteDay, nd.id);
 }
