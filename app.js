@@ -350,7 +350,41 @@ function depthInput(id, value = '') {
   return i;
 }
 
-// Depth input with +/- 0.1m buttons
+// DateTime control with Now + H±/M± adjustment buttons
+// Works on any time string containing HH:MM (e.g. "09:30 25/05/2026")
+function buildDateTimeControl(id, value) {
+  const inp = depthInput(id, '');   // reuse depthInput just to get a styled input
+  // Override type back to text — it was set to number by depthInput
+  inp.type = 'text';
+  inp.inputMode = '';
+  inp.step = '';
+  inp.value = value || '';
+  inp.removeEventListener && inp.removeEventListener('input', setDirty); // depthInput added it
+
+  const adjust = (deltaH, deltaM) => {
+    const str = inp.value;
+    const m = str.match(/(\d{1,2}):(\d{2})/);
+    if (!m) { toast('Enter a date/time first, then adjust'); return; }
+    let h = parseInt(m[1]);
+    let min = parseInt(m[2]);
+    h   = ((h   + deltaH) % 24 + 24) % 24;
+    min = ((min + deltaM) % 60 + 60) % 60;
+    inp.value = str.replace(/(\d{1,2}):(\d{2})/, h.toString().padStart(2, '0') + ':' + min.toString().padStart(2, '0'));
+    setDirty();
+  };
+
+  const nowBtn  = el('button', { class: 'btn btn-small', type: 'button', onclick: () => { inp.value = nowStr(); setDirty(); }}, 'Now');
+  const hMinus  = el('button', { class: 'btn btn-small', type: 'button', onclick: () => adjust(-1,  0) }, 'H−');
+  const hPlus   = el('button', { class: 'btn btn-small', type: 'button', onclick: () => adjust(+1,  0) }, 'H+');
+  const mMinus  = el('button', { class: 'btn btn-small', type: 'button', onclick: () => adjust( 0, -1) }, 'M−');
+  const mPlus   = el('button', { class: 'btn btn-small', type: 'button', onclick: () => adjust( 0, +1) }, 'M+');
+
+  const container = el('div', { class: 'dt-control' }, [inp, nowBtn, hMinus, hPlus, mMinus, mPlus]);
+  // Expose .value so callers can read the input directly
+  Object.defineProperty(container, 'value', { get: () => inp.value, set: v => { inp.value = v; } });
+  container.input = inp;
+  return container;
+}
 function depthInputWithButtons(id, value = '') {
   const inp = depthInput(id, value);
   const upBtn = el('button', { class: 'btn btn-small', type: 'button', onclick: () => {

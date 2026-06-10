@@ -622,6 +622,8 @@ async function screenWaterParams(locationId) {
         el('th', {}, 'Date / Time'),
         el('th', {}, 'Vol (L)'),
         el('th', {}, 'Depth (m)'),
+        el('th', {}, 'mBTOC'),
+        el('th', {}, 'Abstraction'),
         el('th', {}, 'pH'),
         el('th', {}, 'EC'),
         el('th', {}, 'Redox (mV)'),
@@ -629,6 +631,7 @@ async function screenWaterParams(locationId) {
         el('th', {}, 'DO'),
         el('th', {}, 'Odour'),
         el('th', {}, 'Sheen'),
+        el('th', {}, 'Colour'),
         el('th', {}, 'Turbidity'),
         el('th', {}, '')
       ])
@@ -642,6 +645,8 @@ async function screenWaterParams(locationId) {
         el('td', {}, wp.dateTime || '—'),
         el('td', {}, wp.volumeRemoved ?? '—'),
         el('td', {}, wp.waterDepth ?? '—'),
+        el('td', {}, wp.waterDepthMBTOC ?? '—'),
+        el('td', {}, wp.abstractionMethod || '—'),
         el('td', {}, wp.pH ?? '—'),
         el('td', {}, ecStr),
         el('td', {}, wp.redox ?? '—'),
@@ -649,6 +654,7 @@ async function screenWaterParams(locationId) {
         el('td', {}, doStr),
         el('td', {}, wp.odour || '—'),
         el('td', {}, wp.sheen || '—'),
+        el('td', {}, wp.colour || '—'),
         el('td', {}, wp.turbidity || '—'),
         el('td', {}, el('span', { class: 'hub-item-arrow' }, '›'))
       ]);
@@ -688,21 +694,27 @@ async function screenWaterParamEdit(wpId) {
     }}, 'Delete')
   ]));
 
-  // Date / Time
-  const dtI = textInput('wp-dt', wp.dateTime || '');
+  // Date / Time — with Now + H±/M± buttons
+  const dtCtrl = buildDateTimeControl('wp-dt', wp.dateTime || '');
   content.appendChild(el('div', { class: 'form-field' }, [
     el('label', {}, 'Date / Time:'),
-    el('div', { class: 'field-group' }, [
-      dtI,
-      el('button', { class: 'btn btn-small', onclick: () => { dtI.value = nowStr(); setDirty(); }}, 'Now')
-    ])
+    dtCtrl
   ]));
 
   // Volume removed
   content.appendChild(formRow('Volume Removed (L):', depthInputWithButtons('wp-vol', wp.volumeRemoved ?? '')));
 
-  // Water depth
+  // Water depth (m)
   content.appendChild(formRow('Water Depth (m):', depthInputWithButtons('wp-wd', wp.waterDepth ?? '')));
+
+  // Water depth mBTOC
+  content.appendChild(formRow('Water Depth (mBTOC):', depthInputWithButtons('wp-wdmbtoc', wp.waterDepthMBTOC ?? '')));
+
+  // Abstraction method
+  const abstrBg = buttonGroup('wp-abstraction', WP_ABSTRACTION, wp.abstractionMethod || '');
+  content.appendChild(el('div', { class: 'form-field vertical lith-bg-row' }, [
+    el('label', {}, 'Abstraction Method:'), abstrBg
+  ]));
 
   // pH
   content.appendChild(formRow('pH:', el('input', { id: 'wp-ph', type: 'number', step: '0.01', inputmode: 'decimal', value: wp.pH ?? '', oninput: () => setDirty() })));
@@ -715,8 +727,8 @@ async function screenWaterParamEdit(wpId) {
     el('div', { class: 'field-group' }, [ecI, ecUnitsI])
   ]));
 
-  // Redox
-  content.appendChild(formRow('Redox (mV):', el('input', { id: 'wp-redox', type: 'number', step: '1', inputmode: 'decimal', value: wp.redox ?? '', oninput: () => setDirty() })));
+  // Redox — allow negatives: no min, inputmode='text' so minus sign is accessible on Android
+  content.appendChild(formRow('Redox (mV):', el('input', { id: 'wp-redox', type: 'number', step: '1', value: wp.redox ?? '', oninput: () => setDirty() })));
 
   // Temperature
   content.appendChild(formRow('Temperature (°C):', el('input', { id: 'wp-temp', type: 'number', step: '0.1', inputmode: 'decimal', value: wp.temperature ?? '', oninput: () => setDirty() })));
@@ -735,14 +747,20 @@ async function screenWaterParamEdit(wpId) {
     el('label', {}, 'Odour:'), odourBg
   ]));
 
-  // Sheen — button group (Yes / No)
+  // Sheen
   const sheenBg = buttonGroup('wp-sheen', WP_SHEEN, wp.sheen || 'No');
   content.appendChild(el('div', { class: 'form-field vertical lith-bg-row' }, [
     el('label', {}, 'Sheen:'), sheenBg
   ]));
 
-  // Turbidity — button group
-  const turbBg = buttonGroup('wp-turb', WP_TURBIDITY, wp.turbidity || 'None');
+  // Colour description
+  const colourBg = buttonGroup('wp-colour', WP_COLOUR, wp.colour || '');
+  content.appendChild(el('div', { class: 'form-field vertical lith-bg-row' }, [
+    el('label', {}, 'Colour:'), colourBg
+  ]));
+
+  // Turbidity
+  const turbBg = buttonGroup('wp-turb', WP_TURBIDITY, wp.turbidity || '');
   content.appendChild(el('div', { class: 'form-field vertical lith-bg-row' }, [
     el('label', {}, 'Turbidity:'), turbBg
   ]));
@@ -754,21 +772,24 @@ async function screenWaterParamEdit(wpId) {
   ]));
 
   content.appendChild(saveBar(async () => {
-    wp.dateTime        = dtI.value;
-    wp.volumeRemoved   = parseFloat(getVal('wp-vol')) || null;
-    wp.waterDepth      = parseFloat(getVal('wp-wd'))  || null;
-    wp.pH              = parseFloat(getVal('wp-ph'))  || null;
-    wp.ec              = parseFloat(getVal('wp-ec'))  || null;
-    wp.ecUnits         = getVal('wp-ec-units') || 'μS/cm';
-    wp.redox           = parseFloat(getVal('wp-redox')) || null;
-    wp.temperature     = parseFloat(getVal('wp-temp'))  || null;
-    wp.dissolvedOxygen = parseFloat(getVal('wp-do'))    || null;
-    wp.doUnits         = getVal('wp-do-units') || 'ppm';
-    wp.odour           = odourBg.dataset.value || '';
-    wp.sheen           = sheenBg.dataset.value || 'No';
-    wp.turbidity       = turbBg.dataset.value  || 'None';
-    wp.notes           = getVal('wp-notes');
-    wp.updatedAt       = new Date().toISOString();
+    wp.dateTime          = dtCtrl.value;
+    wp.volumeRemoved     = parseFloat(getVal('wp-vol'))      || null;
+    wp.waterDepth        = parseFloat(getVal('wp-wd'))       || null;
+    wp.waterDepthMBTOC   = parseFloat(getVal('wp-wdmbtoc'))  || null;
+    wp.abstractionMethod = abstrBg.dataset.value || '';
+    wp.pH                = parseFloat(getVal('wp-ph'))       || null;
+    wp.ec                = parseFloat(getVal('wp-ec'))       || null;
+    wp.ecUnits           = getVal('wp-ec-units') || 'μS/cm';
+    wp.redox             = getVal('wp-redox') !== '' ? parseFloat(getVal('wp-redox')) : null;
+    wp.temperature       = parseFloat(getVal('wp-temp'))     || null;
+    wp.dissolvedOxygen   = parseFloat(getVal('wp-do'))       || null;
+    wp.doUnits           = getVal('wp-do-units') || 'ppm';
+    wp.odour             = odourBg.dataset.value  || '';
+    wp.sheen             = sheenBg.dataset.value  || 'No';
+    wp.colour            = colourBg.dataset.value || '';
+    wp.turbidity         = turbBg.dataset.value   || '';
+    wp.notes             = getVal('wp-notes');
+    wp.updatedAt         = new Date().toISOString();
     await dbPut('waterParams', wp);
   }));
 
@@ -797,6 +818,8 @@ async function createAndEditWaterParam(locationId) {
     dateTime: nowStr(),
     volumeRemoved: null,
     waterDepth: null,
+    waterDepthMBTOC: null,
+    abstractionMethod: '',
     pH: null,
     ec: null,     ecUnits: 'μS/cm',
     redox: null,
@@ -804,7 +827,8 @@ async function createAndEditWaterParam(locationId) {
     dissolvedOxygen: null, doUnits: 'ppm',
     odour: '',
     sheen: 'No',
-    turbidity: 'None',
+    colour: '',
+    turbidity: '',
     notes: '',
     createdAt: new Date().toISOString()
   };

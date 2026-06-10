@@ -1,5 +1,5 @@
 // ===== LocDat configuration (from Configuration.xlsx) =====
-const APP_VERSION = '0.5.4';
+const APP_VERSION = '0.5.5';
 const APP_STAGE = 'Beta';
 const AUTH_CONFIG_URL = 'https://gist.githubusercontent.com/LWC-JC/5d9ec7b11578ed9007c22dfa5a54c508/raw/locdat-auth.json';
 const AUTH_CACHE_DAYS = 7;
@@ -41,7 +41,9 @@ const WP_EC_UNITS      = ['μS/cm', 'mS/cm'];
 const WP_DO_UNITS      = ['ppm', '%'];
 const WP_ODOUR         = ['', 'Hydrocarbon', 'Organic', 'Sweet', 'Other'];
 const WP_SHEEN         = ['No', 'Yes'];
-const WP_TURBIDITY     = ['None', 'Low', 'Moderate', 'High'];
+const WP_TURBIDITY     = ['Clear', 'Slight', 'Moderate', 'High'];
+const WP_COLOUR        = ['', 'Brown', 'Grey', 'Black', 'Other'];
+const WP_ABSTRACTION   = ['', 'Bailer', 'Pump', 'Surge block', 'Other'];
 
 const MEASUREMENT_CONFIG = {
   types: ['', 'PID', 'RemScan'],

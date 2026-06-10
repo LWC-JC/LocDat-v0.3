@@ -540,7 +540,7 @@ async function exportXlsx(projectId, selLocs) {
   if (customRows.length > 1) sheets['Custom'] = customRows;
 
   // Water Parameters sheet — all readings for all selected locations
-  const wpRows = [['Location_Code', 'Date_Time', 'Volume_Removed_L', 'Water_Depth_m', 'pH', 'EC', 'EC_Units', 'Redox_mV', 'Temperature_C', 'Dissolved_Oxygen', 'DO_Units', 'Odour', 'Sheen', 'Turbidity', 'Notes']];
+  const wpRows = [['Location_Code', 'Date_Time', 'Volume_Removed_L', 'Water_Depth_m', 'Water_Depth_mBTOC', 'Abstraction_Method', 'pH', 'EC', 'EC_Units', 'Redox_mV', 'Temperature_C', 'Dissolved_Oxygen', 'DO_Units', 'Odour', 'Sheen', 'Colour', 'Turbidity', 'Notes']];
   for (const { locId } of selLocs) {
     const loc = await dbGet('locations', locId);
     const wps = await dbGetAllByIndex('waterParams', 'locationId', locId);
@@ -548,10 +548,11 @@ async function exportXlsx(projectId, selLocs) {
     for (const w of wps) {
       wpRows.push([
         loc.locationId, w.dateTime, w.volumeRemoved ?? '', w.waterDepth ?? '',
+        w.waterDepthMBTOC ?? '', w.abstractionMethod || '',
         w.pH ?? '', w.ec ?? '', w.ecUnits || 'μS/cm',
         w.redox ?? '', w.temperature ?? '',
         w.dissolvedOxygen ?? '', w.doUnits || 'ppm',
-        w.odour || '', w.sheen || '', w.turbidity || '', w.notes || ''
+        w.odour || '', w.sheen || '', w.colour || '', w.turbidity || '', w.notes || ''
       ]);
     }
   }
